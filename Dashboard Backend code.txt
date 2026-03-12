@@ -1,0 +1,715 @@
+/**
+ * Dashboard Backend for Repair Review System
+ * 
+ * This script fetches data from "DataforDashboard" sheet and calculates
+ * various metrics based on filters (period, projects)
+ * 
+ * Deploy this as a Google Apps Script Web App
+ */
+
+// ========================================
+// CONFIGURATION
+// ========================================
+
+const SPREADSHEET_ID = '1_zIjC2rP561MGdgD7dTkafpTCjcrZIXiZEDj_Y_5K3M';
+const DASHBOARD_SHEET_NAME = 'DataforDashboard';
+
+// ========================================
+// MAIN HANDLERS
+// ========================================
+
+/**
+ * Handle GET requests
+ */
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    
+    if (action === 'getDashboardData') {
+      return getDashboardData(e);
+    }
+    
+    return createResponse({ status: 'error', message: 'Invalid action' });
+  } catch (error) {
+    Logger.log('Error in doGet: ' + error.toString());
+    return createResponse({ 
+      status: 'error', 
+      message: error.toString() 
+    });
+  }
+}
+
+/**
+ * Handle POST requests (if needed in future)
+ */
+function doPost(e) {
+  return createResponse({ 
+    status: 'error', 
+    message: 'POST method not supported' 
+  });
+}
+
+// ========================================
+// DASHBOARD DATA FUNCTIONS
+// ========================================
+
+/**
+ * Get dashboard data with filters
+ */
+function getDashboardData(e) {
+  try {
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = spreadsheet.getSheetByName(DASHBOARD_SHEET_NAME);
+    
+    if (!sheet) {
+      throw new Error('Sheet "' + DASHBOARD_SHEET_NAME + '" not found');
+    }
+    
+    // Get all data
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+    
+    if (values.length <= 1) {
+      return createResponse({ 
+        status: 'success', 
+        data: getEmptyDashboardData(),
+        message: 'No data available'
+      });
+    }
+    
+    // Parse headers
+    const headers = values[0];
+    const columnIndex = {};
+    headers.forEach((header, index) => {
+      columnIndex[header] = index;
+    });
+    
+    // Parse filter parameters
+    const filters = parseFilters(e.parameter);
+    
+    // Convert rows to objects
+    const rows = [];
+    for (let i = 1; i < values.length; i++) {
+      const row = {};
+      headers.forEach((header, index) => {
+        row[header] = values[i][index];
+      });
+      rows.push(row);
+    }
+    
+    // Filter data
+    const filteredData = filterData(rows, filters);
+    
+    // Calculate metrics
+    const dashboardData = calculateDashboardMetrics(filteredData);
+    
+    // Get unique projects for filter dropdown
+    const projects = getUniqueProjects(rows);
+    
+    return createResponse({ 
+      status: 'success', 
+      data: dashboardData,
+      projects: projects,
+      filters: filters,
+      totalRecords: filteredData.length
+    });
+    
+  } catch (error) {
+    Logger.log('Error in getDashboardData: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
+    return createResponse({ 
+      status: 'error', 
+      message: error.toString(),
+      stack: error.stack
+    });
+  }
+}
+
+/**
+ * Parse filter parameters from request
+ */
+function parseFilters(params) {
+  const period = params.period || 'this-month';
+  const month = params.month ? parseInt(params.month) : null;
+  const year = params.year ? parseInt(params.year) : null;
+  const projects = params.projects ? params.projects.split(',') : [];
+  
+  const now = new Date();
+  let startDate = null;
+  let endDate = null;
+  
+  switch (period) {
+    case 'this-month':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      break;
+      
+    case 'this-year':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      endDate = new Date(now.getFullYear(), 11, 31);
+      break;
+      
+    case 'by-month':
+      if (month && year) {
+        startDate = new Date(year, month - 1, 1);
+        endDate = new Date(year, month, 0);
+      }
+      break;
+      
+    case 'by-year':
+      if (year) {
+        startDate = new Date(year, 0, 1);
+        endDate = new Date(year, 11, 31);
+      }
+      break;
+  }
+  
+  return {
+    period: period,
+    month: month,
+    year: year,
+    projects: projects,
+    startDate: startDate,
+    endDate: endDate
+  };
+}
+
+/**
+ * Filter data based on date and projects
+ */
+function filterData(rows, filters) {
+  return rows.filter(row => {
+    // Filter by date
+    if (filters.startDate && filters.endDate) {
+      const createdAt = parseDate(row.createdAt);
+      if (!createdAt) return false;
+      
+      // Reset time to midnight for comparison
+      const rowDate = new Date(createdAt.getFullYear(), createdAt.getMonth(), createdAt.getDate());
+      const start = new Date(filters.startDate.getFullYear(), filters.startDate.getMonth(), filters.startDate.getDate());
+      const end = new Date(filters.endDate.getFullYear(), filters.endDate.getMonth(), filters.endDate.getDate());
+      
+      if (rowDate < start || rowDate > end) return false;
+    }
+    
+    // Filter by projects
+    if (filters.projects.length > 0) {
+      if (!filters.projects.includes(String(row.ProjectName || ''))) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
+}
+
+/**
+ * Parse date string in format mm/dd/yyyy
+ */
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  
+  try {
+    // If it's already a Date object
+    if (dateStr instanceof Date) {
+      return dateStr;
+    }
+    
+    // Parse mm/dd/yyyy format
+    const str = String(dateStr);
+    const parts = str.split('/');
+    
+    if (parts.length === 3) {
+      const month = parseInt(parts[0]);
+      const day = parseInt(parts[1]);
+      const year = parseInt(parts[2]);
+      
+      if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+        return new Date(year, month - 1, day);
+      }
+    }
+    
+    // Try parsing as is
+    const date = new Date(dateStr);
+    if (!isNaN(date.getTime())) {
+      return date;
+    }
+    
+    return null;
+  } catch (e) {
+    Logger.log('Error parsing date: ' + dateStr + ' - ' + e.toString());
+    return null;
+  }
+}
+
+/**
+ * Calculate all dashboard metrics
+ */
+function calculateDashboardMetrics(data) {
+  const metrics = {
+    // 2. Total Jobs
+    totalJobs: data.length,
+    
+    // 3. Total Units (unique house numbers)
+    totalUnits: getUniqueCount(data, 'HouseNumber'),
+    
+    // 4. Average Score
+    avgScore: calculateAverageScore(data),
+    
+    // 5. Review Status (jobs & units)
+    reviewed: calculateReviewedMetrics(data),
+    
+    // 6. Unable Status (jobs & units)
+    unable: calculateUnableMetrics(data),
+    
+    // 7. Remaining Status (jobs & units)
+    remaining: calculateRemainingMetrics(data),
+    
+    // 10. Job Share (Call Center vs FM)
+    jobShare: calculateJobShare(data),
+    
+    // 11. Unit Share (Call Center vs FM)
+    unitShare: calculateUnitShare(data),
+    
+    // 12. Score Breakdown
+    scores: calculateScoreBreakdown(data),
+    
+    // 13. Feedback/Comments
+    feedback: getFeedback(data)
+  };
+  
+  // Calculate rates (8, 9) - Ensure percentages always sum to 100%
+  const total = metrics.totalJobs;
+  if (total > 0) {
+    // Calculate exact percentages
+    const reviewedPercent = (metrics.reviewed.jobs / total) * 100;
+    const unablePercent = (metrics.unable.jobs / total) * 100;
+    const remainingPercent = (metrics.remaining.jobs / total) * 100;
+    
+    // Round and ensure they sum to 100%
+    metrics.reviewed.rate = Math.round(reviewedPercent);
+    metrics.unable.rate = Math.round(unablePercent);
+    metrics.remaining.rate = 100 - metrics.reviewed.rate - metrics.unable.rate;
+    
+    // Ensure no negative values
+    if (metrics.remaining.rate < 0) {
+      metrics.remaining.rate = 0;
+      metrics.reviewed.rate = Math.floor(reviewedPercent);
+      metrics.unable.rate = 100 - metrics.reviewed.rate;
+    }
+  } else {
+    metrics.reviewed.rate = 0;
+    metrics.unable.rate = 0;
+    metrics.remaining.rate = 0;
+  }
+  
+  const totalUnits = metrics.totalUnits;
+  if (totalUnits > 0) {
+    // Calculate exact percentages for units
+    const reviewedUnitPercent = (metrics.reviewed.units / totalUnits) * 100;
+    const unableUnitPercent = (metrics.unable.units / totalUnits) * 100;
+    const remainingUnitPercent = (metrics.remaining.units / totalUnits) * 100;
+    
+    // Round and ensure they sum to 100%
+    metrics.reviewed.unitRate = Math.round(reviewedUnitPercent);
+    metrics.unable.unitRate = Math.round(unableUnitPercent);
+    metrics.remaining.unitRate = 100 - metrics.reviewed.unitRate - metrics.unable.unitRate;
+    
+    // Ensure no negative values
+    if (metrics.remaining.unitRate < 0) {
+      metrics.remaining.unitRate = 0;
+      metrics.reviewed.unitRate = Math.floor(reviewedUnitPercent);
+      metrics.unable.unitRate = 100 - metrics.reviewed.unitRate;
+    }
+  } else {
+    metrics.reviewed.unitRate = 0;
+    metrics.unable.unitRate = 0;
+    metrics.remaining.unitRate = 0;
+  }
+  
+  return metrics;
+}
+
+/**
+ * Get unique count of a field
+ */
+function getUniqueCount(data, field) {
+  const uniqueValues = new Set();
+  data.forEach(row => {
+    const value = row[field];
+    if (value !== null && value !== undefined && String(value).trim() !== '') {
+      uniqueValues.add(String(value));
+    }
+  });
+  return uniqueValues.size;
+}
+
+/**
+ * Get unit status for each unique unit (determines primary status per unit)
+ */
+function getUnitStatusMap(data) {
+  const unitStatusMap = new Map();
+  
+  // Group data by unit
+  const unitGroups = new Map();
+  data.forEach(row => {
+    const unit = String(row.HouseNumber || '').trim();
+    if (unit) {
+      if (!unitGroups.has(unit)) {
+        unitGroups.set(unit, []);
+      }
+      unitGroups.get(unit).push(row);
+    }
+  });
+  
+  // Determine status for each unit
+  unitGroups.forEach((rows, unit) => {
+    let hasReview = false;
+    let hasUnable = false;
+    
+    for (const row of rows) {
+      // Check if has review
+      const review01 = parseFloat(row.Review01);
+      if (!isNaN(review01) && review01 > 0) {
+        hasReview = true;
+        break;
+      }
+      
+      // Check if unable
+      const unableReview = String(row.unableReview || '').trim().toLowerCase();
+      if (unableReview === 'true') {
+        hasUnable = true;
+      }
+    }
+    
+    // Priority: Review > Unable > Remaining
+    if (hasReview) {
+      unitStatusMap.set(unit, 'reviewed');
+    } else if (hasUnable) {
+      unitStatusMap.set(unit, 'unable');
+    } else {
+      unitStatusMap.set(unit, 'remaining');
+    }
+  });
+  
+  return unitStatusMap;
+}
+
+/**
+ * Calculate average score across all 5 review questions
+ */
+function calculateAverageScore(data) {
+  if (data.length === 0) return 0;
+  
+  let totalScore = 0;
+  let count = 0;
+  
+  data.forEach(row => {
+    const scores = [
+      parseFloat(row.Review01) || 0,
+      parseFloat(row.Review02) || 0,
+      parseFloat(row.Review03) || 0,
+      parseFloat(row.Review04) || 0,
+      parseFloat(row.Review05) || 0
+    ];
+    
+    // Calculate average for this row
+    const rowAvg = scores.reduce((sum, s) => sum + s, 0) / 5;
+    
+    // Only include if at least one score exists
+    if (scores.some(s => s > 0)) {
+      totalScore += rowAvg;
+      count++;
+    }
+  });
+  
+  return count > 0 ? Math.round((totalScore / count) * 10) / 10 : 0;
+}
+
+/**
+ * Calculate metrics for reviewed items
+ * Reviewed = has Review01 value
+ */
+function calculateReviewedMetrics(data) {
+  const reviewed = data.filter(row => {
+    const review01 = parseFloat(row.Review01);
+    return !isNaN(review01) && review01 > 0;
+  });
+  
+  // Get unique units with reviewed status
+  const unitStatusMap = getUnitStatusMap(data);
+  let reviewedUnits = 0;
+  unitStatusMap.forEach((status, unit) => {
+    if (status === 'reviewed') {
+      reviewedUnits++;
+    }
+  });
+  
+  return {
+    jobs: reviewed.length,
+    units: reviewedUnits,
+    rate: 0, // Will be calculated later
+    unitRate: 0 // Will be calculated later
+  };
+}
+
+/**
+ * Calculate metrics for unable items
+ * Unable = unableReview is "True"
+ */
+function calculateUnableMetrics(data) {
+  const unable = data.filter(row => {
+    const unableReview = String(row.unableReview || '').trim().toLowerCase();
+    return unableReview === 'true';
+  });
+  
+  // Get unique units with unable status
+  const unitStatusMap = getUnitStatusMap(data);
+  let unableUnits = 0;
+  unitStatusMap.forEach((status, unit) => {
+    if (status === 'unable') {
+      unableUnits++;
+    }
+  });
+  
+  return {
+    jobs: unable.length,
+    units: unableUnits,
+    rate: 0, // Will be calculated later
+    unitRate: 0 // Will be calculated later
+  };
+}
+
+/**
+ * Calculate metrics for remaining items
+ * Remaining = both unableReview and Reviewby are empty
+ */
+function calculateRemainingMetrics(data) {
+  const remaining = data.filter(row => {
+    const unableReview = String(row.unableReview || '').trim();
+    const reviewBy = String(row.Reviewby || '').trim();
+    return unableReview === '' && reviewBy === '';
+  });
+  
+  // Get unique units with remaining status
+  const unitStatusMap = getUnitStatusMap(data);
+  let remainingUnits = 0;
+  unitStatusMap.forEach((status, unit) => {
+    if (status === 'remaining') {
+      remainingUnits++;
+    }
+  });
+  
+  return {
+    jobs: remaining.length,
+    units: remainingUnits,
+    rate: 0, // Will be calculated later
+    unitRate: 0 // Will be calculated later
+  };
+}
+
+/**
+ * Calculate job share between Call Center and FM
+ */
+function calculateJobShare(data) {
+  const callCenterJobs = data.filter(row => {
+    return String(row.Reviewby || '').trim() === 'Call Center';
+  }).length;
+  
+  const fmJobs = data.filter(row => {
+    return String(row.Reviewby || '').trim() === 'Foreman';
+  }).length;
+  
+  const total = callCenterJobs + fmJobs;
+  
+  return {
+    callCenter: {
+      count: callCenterJobs,
+      rate: total > 0 ? Math.round((callCenterJobs / total) * 100) : 0
+    },
+    fm: {
+      count: fmJobs,
+      rate: total > 0 ? Math.round((fmJobs / total) * 100) : 0
+    }
+  };
+}
+
+/**
+ * Calculate unit share between Call Center and FM
+ */
+function calculateUnitShare(data) {
+  // Only consider units that have been reviewed (have Reviewby data)
+  const reviewedData = data.filter(row => {
+    const review01 = parseFloat(row.Review01);
+    return !isNaN(review01) && review01 > 0;
+  });
+  
+  // Get unique units per channel
+  const ccUnits = new Set();
+  const fmUnits = new Set();
+  
+  reviewedData.forEach(row => {
+    const reviewBy = String(row.Reviewby || '').trim();
+    const unit = String(row.HouseNumber || '').trim();
+    
+    if (unit && reviewBy === 'Call Center') {
+      ccUnits.add(unit);
+    } else if (unit && reviewBy === 'Foreman') {
+      fmUnits.add(unit);
+    }
+  });
+  
+  const callCenterUnits = ccUnits.size;
+  const fmUnits_count = fmUnits.size;
+  const total = callCenterUnits + fmUnits_count;
+  
+  return {
+    callCenter: {
+      count: callCenterUnits,
+      rate: total > 0 ? Math.round((callCenterUnits / total) * 100) : 0
+    },
+    fm: {
+      count: fmUnits_count,
+      rate: total > 0 ? Math.round((fmUnits_count / total) * 100) : 0
+    }
+  };
+}
+
+/**
+ * Calculate average score for each review question
+ */
+function calculateScoreBreakdown(data) {
+  if (data.length === 0) {
+    return {
+      adminCoordination: 0,
+      speedAndNotification: 0,
+      dressingAndPoliteness: 0,
+      cleanliness: 0,
+      repairSatisfaction: 0
+    };
+  }
+  
+  const scores = {
+    review01: [],
+    review02: [],
+    review03: [],
+    review04: [],
+    review05: []
+  };
+  
+  data.forEach(row => {
+    const r1 = parseFloat(row.Review01);
+    const r2 = parseFloat(row.Review02);
+    const r3 = parseFloat(row.Review03);
+    const r4 = parseFloat(row.Review04);
+    const r5 = parseFloat(row.Review05);
+    
+    if (!isNaN(r1) && r1 > 0) scores.review01.push(r1);
+    if (!isNaN(r2) && r2 > 0) scores.review02.push(r2);
+    if (!isNaN(r3) && r3 > 0) scores.review03.push(r3);
+    if (!isNaN(r4) && r4 > 0) scores.review04.push(r4);
+    if (!isNaN(r5) && r5 > 0) scores.review05.push(r5);
+  });
+  
+  const avg = (arr) => {
+    if (arr.length === 0) return 0;
+    const sum = arr.reduce((a, b) => a + b, 0);
+    return Math.round((sum / arr.length) * 10) / 10;
+  };
+  
+  return {
+    adminCoordination: avg(scores.review01),
+    speedAndNotification: avg(scores.review02),
+    dressingAndPoliteness: avg(scores.review03),
+    cleanliness: avg(scores.review04),
+    repairSatisfaction: avg(scores.review05)
+  };
+}
+
+/**
+ * Get feedback/comments sorted by date (newest first)
+ */
+function getFeedback(data) {
+  // Filter only rows with comments
+  const withComments = data.filter(row => {
+    const comment = String(row.reviewComment || '').trim();
+    return comment !== '';
+  });
+  
+  // Sort by date (newest first)
+  withComments.sort((a, b) => {
+    const dateA = parseDate(a.createdAt);
+    const dateB = parseDate(b.createdAt);
+    
+    if (!dateA) return 1;
+    if (!dateB) return -1;
+    
+    return dateB.getTime() - dateA.getTime();
+  });
+  
+  // Map to feedback objects
+  return withComments.map(row => ({
+    serialNumber: String(row.serialNumber || ''),
+    projectName: String(row.ProjectName || ''),
+    houseNumber: String(row.HouseNumber || ''),
+    comment: String(row.reviewComment || ''),
+    createdAt: row.createdAt
+  }));
+}
+
+/**
+ * Get unique projects from data
+ */
+function getUniqueProjects(data) {
+  const projects = new Set();
+  data.forEach(row => {
+    const project = String(row.ProjectName || '').trim();
+    if (project !== '') {
+      projects.add(project);
+    }
+  });
+  return Array.from(projects).sort();
+}
+
+/**
+ * Get empty dashboard data structure
+ */
+function getEmptyDashboardData() {
+  return {
+    totalJobs: 0,
+    totalUnits: 0,
+    avgScore: 0,
+    reviewed: { jobs: 0, units: 0, rate: 0, unitRate: 0 },
+    unable: { jobs: 0, units: 0, rate: 0, unitRate: 0 },
+    remaining: { jobs: 0, units: 0, rate: 0, unitRate: 0 },
+    jobShare: {
+      callCenter: { count: 0, rate: 0 },
+      fm: { count: 0, rate: 0 }
+    },
+    unitShare: {
+      callCenter: { count: 0, rate: 0 },
+      fm: { count: 0, rate: 0 }
+    },
+    scores: {
+      adminCoordination: 0,
+      speedAndNotification: 0,
+      dressingAndPoliteness: 0,
+      cleanliness: 0,
+      repairSatisfaction: 0
+    },
+    feedback: []
+  };
+}
+
+// ========================================
+// HELPER FUNCTIONS
+// ========================================
+
+/**
+ * Create JSON response
+ */
+function createResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}

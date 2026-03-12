@@ -1,0 +1,507 @@
+// ======================================
+// Back Office Backend - Google Apps Script
+// ======================================
+// Deploy: Web app -> Execute as: Me -> Access: Anyone
+// ======================================
+
+const SPREADSHEET_ID = '1_zIjC2rP561MGdgD7dTkafpTCjcrZIXiZEDj_Y_5K3M';
+
+function doGet(e) {
+  try {
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: true,
+      message: 'Back Office API is running',
+      timestamp: new Date().toISOString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch(error) {
+    return ContentService.createTextOutput(JSON.stringify({ 
+      success: false,
+      message: 'Error in doGet: ' + error.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doPost(e) {
+  try {
+    // Check if postData exists
+    if (!e || !e.postData || !e.postData.contents) {
+      return createResponse(false, 'No post data received');
+    }
+    
+    const params = JSON.parse(e.postData.contents);
+    const action = params.action;
+    
+    if (!action) {
+      return createResponse(false, 'Action parameter is required');
+    }
+    
+    switch(action) {
+      case 'getProjects':
+        return getProjects();
+      case 'getProjectsByStatus':
+        return getProjectsByStatus(params);
+      case 'getPendingReviews':
+        return getPendingReviews();
+      case 'getCompletedReviews':
+        return getCompletedReviews();
+      case 'updateReview':
+        return updateReview(params);
+      case 'updateReviewStatus':
+        return updateReviewStatus(params);
+      default:
+        return createResponse(false, 'Invalid action: ' + action);
+    }
+  } catch(error) {
+    Logger.log('Error in doPost: ' + error.toString());
+    Logger.log('Stack trace: ' + error.stack);
+    return createResponse(false, 'Server error: ' + error.toString());
+  }
+}
+
+// ======================================
+// Get Projects List
+// ======================================
+function getProjects() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName('Project');
+    
+    if (!sheet) {
+      return createResponse(false, 'Sheet "Project" not found');
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    const projectNameIndex = headers.indexOf('ProjectName');
+    
+    if (projectNameIndex === -1) {
+      return createResponse(false, 'Column "ProjectName" not found');
+    }
+    
+    const projects = [];
+    for (let i = 1; i < data.length; i++) {
+      const projectName = data[i][projectNameIndex];
+      if (projectName && projectName.toString().trim() !== '') {
+        projects.push(projectName.toString().trim());
+      }
+    }
+    
+    return createResponse(true, 'Success', { projects: projects });
+  } catch(error) {
+    return createResponse(false, error.toString());
+  }
+}
+
+// ======================================
+// Get Projects by Status from SurveyResponses
+// ======================================
+function getProjectsByStatus(params) {
+  try {
+    const status = params.status;
+    
+    if (!status) {
+      return createResponse(false, 'Status parameter is required');
+    }
+    
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName('SurveyResponses');
+    
+    if (!sheet) {
+      return createResponse(false, 'Sheet "SurveyResponses" not found');
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    
+    const projectNameIndex = headers.indexOf('ProjectName');
+    const migrateStatusIndex = headers.indexOf('MigratetoSHStatus');
+    
+    if (projectNameIndex === -1) {
+      return createResponse(false, 'Column "ProjectName" not found');
+    }
+    
+    if (migrateStatusIndex === -1) {
+      return createResponse(false, 'Column "MigratetoSHStatus" not found');
+    }
+    
+    // Use Set to automatically remove duplicates
+    const projectSet = new Set();
+    
+    for (let i = 1; i < data.length; i++) {
+      const projectName = data[i][projectNameIndex];
+      const migrateStatus = data[i][migrateStatusIndex];
+      
+      // Filter by status and add to set
+      if (projectName && 
+          projectName.toString().trim() !== '' && 
+          migrateStatus && 
+          migrateStatus.toString().trim() === status) {
+        projectSet.add(projectName.toString().trim());
+      }
+    }
+    
+    // Convert Set to sorted array
+    const projects = Array.from(projectSet).sort();
+    
+    return createResponse(true, 'Success', { projects: projects });
+  } catch(error) {
+    return createResponse(false, error.toString());
+  }
+}
+
+// ======================================
+// Get Pending Reviews (รอตรวจสอบ)
+// ======================================
+function getPendingReviews() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    
+    // Get SurveyResponses sheet
+    const surveySheet = ss.getSheetByName('SurveyResponses');
+    if (!surveySheet) {
+      return createResponse(false, 'Sheet "SurveyResponses" not found');
+    }
+    
+    // Get data from SurveyResponses
+    const surveyData = surveySheet.getDataRange().getValues();
+    const surveyHeaders = surveyData[0];
+    
+    // Find column indices
+    const workOrderIdsIndex = surveyHeaders.indexOf('workOrderIds');
+    const projectNameIndex = surveyHeaders.indexOf('ProjectName');
+    const unitIndex = surveyHeaders.indexOf('Unit');
+    const submissionDateIndex = surveyHeaders.indexOf('submissionDate');
+    const adminCoordinationIndex = surveyHeaders.indexOf('admin_coordination');
+    const schedulingSpeedIndex = surveyHeaders.indexOf('scheduling_speed');
+    const technicianMannerIndex = surveyHeaders.indexOf('technician_manner');
+    const cleanlinessIndex = surveyHeaders.indexOf('cleanliness');
+    const repairSatisfactionIndex = surveyHeaders.indexOf('repair_satisfaction');
+    const commentIndex = surveyHeaders.indexOf('comment');
+    const migrateStatusIndex = surveyHeaders.indexOf('MigratetoSHStatus');
+    
+    if (workOrderIdsIndex === -1) {
+      return createResponse(false, 'Column "workOrderIds" not found in SurveyResponses');
+    }
+    
+    if (migrateStatusIndex === -1) {
+      return createResponse(false, 'Column "MigratetoSHStatus" not found in SurveyResponses');
+    }
+    
+    // Collect reviews where MigratetoSHStatus is NOT "success"
+    const reviews = [];
+    for (let i = 1; i < surveyData.length; i++) {
+      const status = surveyData[i][migrateStatusIndex];
+      const statusValue = status ? status.toString().trim().toLowerCase() : '';
+      
+      // Include if status is empty, "skip", or anything except "success"
+      if (statusValue !== 'success') {
+        const workOrderId = surveyData[i][workOrderIdsIndex];
+        if (workOrderId && workOrderId.toString().trim() !== '') {
+          const review = {
+            rowIndex: i + 1, // For updating later
+            jobNumber: workOrderId || '',
+            project: projectNameIndex !== -1 ? (surveyData[i][projectNameIndex] || '') : '',
+            houseNumber: unitIndex !== -1 ? (surveyData[i][unitIndex] || '') : '',
+            reviewDate: submissionDateIndex !== -1 ? (surveyData[i][submissionDateIndex] || '') : '',
+            scores: {
+              adminCoordination: adminCoordinationIndex !== -1 ? (surveyData[i][adminCoordinationIndex] || 0) : 0,
+              schedulingSpeed: schedulingSpeedIndex !== -1 ? (surveyData[i][schedulingSpeedIndex] || 0) : 0,
+              technicianManner: technicianMannerIndex !== -1 ? (surveyData[i][technicianMannerIndex] || 0) : 0,
+              cleanliness: cleanlinessIndex !== -1 ? (surveyData[i][cleanlinessIndex] || 0) : 0,
+              repairSatisfaction: repairSatisfactionIndex !== -1 ? (surveyData[i][repairSatisfactionIndex] || 0) : 0
+            },
+            comment: commentIndex !== -1 ? (surveyData[i][commentIndex] || '') : '',
+            status: 'pending'
+          };
+          
+          reviews.push(review);
+        }
+      }
+    }
+    
+    return createResponse(true, 'Success', { reviews: reviews });
+  } catch(error) {
+    return createResponse(false, error.toString());
+  }
+}
+
+// ======================================
+// Get Completed Reviews (บันทึกสำเร็จ - MigratetoSHStatus = "Success")
+// ======================================
+function getCompletedReviews() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const surveySheet = ss.getSheetByName('SurveyResponses');
+    
+    if (!surveySheet) {
+      return createResponse(false, 'Sheet "SurveyResponses" not found');
+    }
+    
+    const surveyData = surveySheet.getDataRange().getValues();
+    const surveyHeaders = surveyData[0];
+    
+    // Find column indexes in SurveyResponses
+    const workOrderIdsIndex = surveyHeaders.indexOf('workOrderIds');
+    const projectNameIndex = surveyHeaders.indexOf('ProjectName');
+    const unitIndex = surveyHeaders.indexOf('Unit');
+    const submissionDateIndex = surveyHeaders.indexOf('submissionDate');
+    const adminCoordinationIndex = surveyHeaders.indexOf('admin_coordination');
+    const schedulingSpeedIndex = surveyHeaders.indexOf('scheduling_speed');
+    const technicianMannerIndex = surveyHeaders.indexOf('technician_manner');
+    const cleanlinessIndex = surveyHeaders.indexOf('cleanliness');
+    const repairSatisfactionIndex = surveyHeaders.indexOf('repair_satisfaction');
+    const commentIndex = surveyHeaders.indexOf('comment');
+    const imageUrlIndex = surveyHeaders.indexOf('ImageUrl');
+    const completedAtIndex = surveyHeaders.indexOf('CompletedAt');
+    const migrateStatusIndex = surveyHeaders.indexOf('MigratetoSHStatus');
+    
+    if (workOrderIdsIndex === -1) {
+      return createResponse(false, 'Column "workOrderIds" not found');
+    }
+    
+    if (migrateStatusIndex === -1) {
+      return createResponse(false, 'Column "MigratetoSHStatus" not found');
+    }
+    
+    const reviews = [];
+    
+    // Collect all reviews where MigratetoSHStatus = "success"
+    for (let i = 1; i < surveyData.length; i++) {
+      const statusValue = surveyData[i][migrateStatusIndex];
+      
+      if (statusValue && statusValue.toString().trim().toLowerCase() === 'success') {
+        const workOrderId = surveyData[i][workOrderIdsIndex];
+        if (workOrderId && workOrderId.toString().trim() !== '') {
+          const review = {
+            rowIndex: i + 1,
+            jobNumber: workOrderId || '',
+            project: projectNameIndex !== -1 ? (surveyData[i][projectNameIndex] || '') : '',
+            houseNumber: unitIndex !== -1 ? (surveyData[i][unitIndex] || '') : '',
+            reviewDate: submissionDateIndex !== -1 ? (surveyData[i][submissionDateIndex] || '') : '',
+            scores: {
+              adminCoordination: adminCoordinationIndex !== -1 ? (surveyData[i][adminCoordinationIndex] || 0) : 0,
+              schedulingSpeed: schedulingSpeedIndex !== -1 ? (surveyData[i][schedulingSpeedIndex] || 0) : 0,
+              technicianManner: technicianMannerIndex !== -1 ? (surveyData[i][technicianMannerIndex] || 0) : 0,
+              cleanliness: cleanlinessIndex !== -1 ? (surveyData[i][cleanlinessIndex] || 0) : 0,
+              repairSatisfaction: repairSatisfactionIndex !== -1 ? (surveyData[i][repairSatisfactionIndex] || 0) : 0
+            },
+            comment: commentIndex !== -1 ? (surveyData[i][commentIndex] || '') : '',
+            status: 'completed',
+            image: imageUrlIndex !== -1 ? (surveyData[i][imageUrlIndex] || '') : '',
+            completedAt: completedAtIndex !== -1 ? (surveyData[i][completedAtIndex] || '') : ''
+          };
+          
+          reviews.push(review);
+        }
+      }
+    }
+    
+    Logger.log('Completed reviews found: ' + reviews.length);
+    
+    return createResponse(true, 'Success', { reviews: reviews });
+  } catch(error) {
+    return createResponse(false, error.toString());
+  }
+}
+
+// ======================================
+// Update Review (แก้ไขโครงการ, บ้านเลขที่, เลขที่ใบงาน)
+// ======================================
+function updateReview(params) {
+  try {
+    const { rowIndex, jobNumber, project, houseNumber } = params;
+    
+    Logger.log('updateReview called with params: ' + JSON.stringify(params));
+    
+    if (!rowIndex) {
+      return createResponse(false, 'Row index is required');
+    }
+    
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const surveySheet = ss.getSheetByName('SurveyResponses');
+    
+    if (!surveySheet) {
+      return createResponse(false, 'Sheet "SurveyResponses" not found');
+    }
+    
+    const headers = surveySheet.getRange(1, 1, 1, surveySheet.getLastColumn()).getValues()[0];
+    const workOrderIdsIndex = headers.indexOf('workOrderIds') + 1;
+    const projectNameIndex = headers.indexOf('ProjectName') + 1;
+    const unitIndex = headers.indexOf('Unit') + 1;
+    const migrateStatusIndex = headers.indexOf('MigratetoSHStatus') + 1;
+    
+    // Get old job number before update (for finding matching row in MigratetoSH)
+    const oldJobNumber = surveySheet.getRange(rowIndex, workOrderIdsIndex).getValue();
+    Logger.log('Old job number: ' + oldJobNumber);
+    
+    // Update cells in SurveyResponses
+    if (workOrderIdsIndex > 0 && jobNumber !== undefined && jobNumber !== null && jobNumber !== '') {
+      surveySheet.getRange(rowIndex, workOrderIdsIndex).setValue(jobNumber);
+      Logger.log('Updated workOrderIds to: ' + jobNumber);
+    }
+    if (projectNameIndex > 0 && project !== undefined && project !== null) {
+      surveySheet.getRange(rowIndex, projectNameIndex).setValue(project);
+      Logger.log('Updated ProjectName to: ' + project);
+    }
+    if (unitIndex > 0 && houseNumber !== undefined && houseNumber !== null) {
+      surveySheet.getRange(rowIndex, unitIndex).setValue(houseNumber);
+      Logger.log('Updated Unit to: ' + houseNumber);
+    }
+    
+    // ===== ขั้นตอนที่ 1: Clear MigratetoSHStatus in SurveyResponses =====
+    if (migrateStatusIndex > 0) {
+      surveySheet.getRange(rowIndex, migrateStatusIndex).clearContent();
+      Logger.log('Step 1: Cleared MigratetoSHStatus in SurveyResponses row ' + rowIndex);
+    } else {
+      Logger.log('Warning: MigratetoSHStatus column not found in SurveyResponses');
+    }
+    
+    // ===== ขั้นตอนที่ 2 & 3: Update MigratetoSH sheet =====
+    const migrateSheet = ss.getSheetByName('MigratetoSH');
+    if (!migrateSheet) {
+      Logger.log('Warning: MigratetoSH sheet not found');
+    } else if (!oldJobNumber || oldJobNumber.toString().trim() === '') {
+      Logger.log('Warning: No old job number to search in MigratetoSH');
+    } else {
+      const migrateData = migrateSheet.getDataRange().getValues();
+      const migrateHeaders = migrateData[0];
+      
+      const serialNumberColIndex = migrateHeaders.indexOf('SerialNumber');
+      
+      if (serialNumberColIndex === -1) {
+        Logger.log('Warning: SerialNumber column not found in MigratetoSH');
+      } else {
+        // Columns to clear in MigratetoSH
+        const columnsToClear = [
+          'ID', 'GetIdStatus', 'type', 'topicid1', 'review1', 
+          'topicid2', 'review2', 'topicid3', 'review3', 
+          'topicid4', 'review4', 'topicid5', 'review5', 
+          'reviewComment', 'MigratetoSHStatus'
+        ];
+        
+        let foundMatch = false;
+        
+        // Find matching row in MigratetoSH (where SerialNumber = oldJobNumber)
+        for (let i = 1; i < migrateData.length; i++) {
+          const serialNumber = migrateData[i][serialNumberColIndex];
+          
+          if (serialNumber && serialNumber.toString().trim() === oldJobNumber.toString().trim()) {
+            foundMatch = true;
+            const migrateRowIndex = i + 1;
+            Logger.log('Found matching row in MigratetoSH at row ' + migrateRowIndex);
+            
+            // ===== ขั้นตอนที่ 2: Update SerialNumber with new job number =====
+            if (jobNumber !== undefined && jobNumber !== null && jobNumber !== '') {
+              migrateSheet.getRange(migrateRowIndex, serialNumberColIndex + 1).setValue(jobNumber);
+              Logger.log('Step 2: Updated SerialNumber in MigratetoSH from "' + oldJobNumber + '" to "' + jobNumber + '"');
+            } else {
+              Logger.log('Step 2: Skipped (no new job number provided)');
+            }
+            
+            // ===== ขั้นตอนที่ 3: Clear specified columns =====
+            let clearedCount = 0;
+            columnsToClear.forEach(colName => {
+              const colIndex = migrateHeaders.indexOf(colName);
+              if (colIndex !== -1) {
+                migrateSheet.getRange(migrateRowIndex, colIndex + 1).clearContent();
+                clearedCount++;
+              }
+            });
+            Logger.log('Step 3: Cleared ' + clearedCount + ' columns in MigratetoSH row ' + migrateRowIndex);
+            
+            break; // Found and updated, exit loop
+          }
+        }
+        
+        if (!foundMatch) {
+          Logger.log('Warning: No matching SerialNumber found in MigratetoSH for: ' + oldJobNumber);
+        }
+      }
+    }
+    
+    // Add edit log
+    const editLogIndex = headers.indexOf('EditLog') + 1;
+    if (editLogIndex > 0) {
+      const timestamp = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+      const currentLog = surveySheet.getRange(rowIndex, editLogIndex).getValue() || '';
+      const newLog = `${currentLog}\n[${timestamp}] แก้ไข: เลขที่ใบงาน=${jobNumber}, โครงการ=${project}, บ้านเลขที่=${houseNumber}`;
+      surveySheet.getRange(rowIndex, editLogIndex).setValue(newLog.trim());
+      Logger.log('Added edit log');
+    }
+    
+    Logger.log('updateReview completed successfully');
+    return createResponse(true, 'Review updated successfully');
+  } catch(error) {
+    Logger.log('Error in updateReview: ' + error.toString());
+    Logger.log('Stack trace: ' + error.stack);
+    return createResponse(false, 'Error updating review: ' + error.toString());
+  }
+}
+
+// ======================================
+// Update Review Status (เปลี่ยนสถานะเป็น บันทึกสำเร็จ)
+// ======================================
+function updateReviewStatus(params) {
+  try {
+    const { rowIndex, status, imageUrl } = params;
+    
+    if (!rowIndex) {
+      return createResponse(false, 'Row index is required');
+    }
+    
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const surveySheet = ss.getSheetByName('SurveyResponses');
+    
+    if (!surveySheet) {
+      return createResponse(false, 'Sheet "SurveyResponses" not found');
+    }
+    
+    const headers = surveySheet.getRange(1, 1, 1, surveySheet.getLastColumn()).getValues()[0];
+    
+    // Update status column (assuming there's a Status column)
+    const statusIndex = headers.indexOf('Status') + 1;
+    if (statusIndex > 0) {
+      surveySheet.getRange(rowIndex, statusIndex).setValue(status || 'completed');
+    }
+    
+    // Update image URL column
+    const imageUrlIndex = headers.indexOf('ImageUrl') + 1;
+    if (imageUrlIndex > 0 && imageUrl) {
+      surveySheet.getRange(rowIndex, imageUrlIndex).setValue(imageUrl);
+    }
+    
+    // Update completion timestamp
+    const completedAtIndex = headers.indexOf('CompletedAt') + 1;
+    if (completedAtIndex > 0) {
+      const timestamp = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+      surveySheet.getRange(rowIndex, completedAtIndex).setValue(timestamp);
+    }
+    
+    // Update MigratetoSHStatus in SurveyResponses to "success"
+    const migrateStatusIndex = headers.indexOf('MigratetoSHStatus') + 1;
+    if (migrateStatusIndex > 0) {
+      surveySheet.getRange(rowIndex, migrateStatusIndex).setValue('success');
+    }
+    
+    return createResponse(true, 'Status updated successfully');
+  } catch(error) {
+    return createResponse(false, error.toString());
+  }
+}
+
+// ======================================
+// Helper Function
+// ======================================
+function createResponse(success, message, data = null) {
+  const response = {
+    success: success,
+    message: message
+  };
+  
+  if (data) {
+    response.data = data;
+  }
+  
+  return ContentService.createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
+}

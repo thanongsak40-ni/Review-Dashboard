@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แบบสอบถามความพึงพอใจงานซ่อม</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qvZ5MDv/LOGO-SENA.png">
+    
+    <!-- Preconnect & DNS Prefetch for Performance -->
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
+    <link rel="dns-prefetch" href="https://api.qrserver.com">
+    <link rel="dns-prefetch" href="https://chart.googleapis.com">
+    <link rel="dns-prefetch" href="https://quickchart.io">
+    <link rel="dns-prefetch" href="https://script.google.com">
+    <link rel="dns-prefetch" href="https://api.ipify.org">
+    <link rel="dns-prefetch" href="https://i.ibb.co">
+    
+    <!-- Tailwind CSS - โหลดปกติเพื่อให้พร้อมก่อน DOM -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" media="print" onload="this.media='all'">
+    <!-- Preload Google Fonts CSS for faster loading -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap"></noscript>
+    <!-- Choices.js for searchable dropdown -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
+    <style>
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #6dd5ed 100%);
+            min-height: 100vh;
+        }
+        
+        .page { 
+            display: none; 
+            animation: slideIn 0.5s ease-in-out;
+        }
+        .page.active { display: block; }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes ripple {
+            0% { transform: scale(0); opacity: 1; }
+            100% { transform: scale(4); opacity: 0; }
+        }
+        
+        .btn-ripple {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-ripple::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+        
+        .btn-ripple:active::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .input-error { border-color: #ef4444 !important; --tw-ring-color: #ef4444 !important; }
+        
+        .rating { display: inline-flex; flex-direction: row-reverse; justify-content: center; }
+        .rating > input { display: none; }
+        .rating > label { 
+            font-size: 2.5rem; 
+            color: #e5e7eb; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+            filter: drop-shadow(2px 2px 4px rgba(0,0,0,0.3));
+        }
+        .rating > label:hover, .rating > label:hover ~ label, .rating > input:checked ~ label { 
+            color: #facc15;
+            transform: scale(1.1);
+        }
+        
+        .logo-shadow {
+            filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.1));
+            transition: transform 0.3s ease;
+        }
+        .logo-shadow:hover {
+            transform: scale(1.05);
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-color: #3b82f6;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        .gradient-button:hover:not(:disabled) {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .gradient-button:disabled {
+            background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        
+        .work-order-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .work-order-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sf-type { border-left: 4px solid #10b981; }
+        .sr-type { border-left: 4px solid #f59e0b; }
+        
+        .qr-container {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border: 3px solid #e2e8f0;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            transition: transform 0.3s ease;
+        }
+        .qr-container:hover {
+            transform: scale(1.02);
+        }
+        
+        .question-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .question-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .floating-pattern {
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%);
+        }
+        
+        .input-focus {
+            transition: all 0.3s ease;
+        }
+        .input-focus:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .input-error {
+            border-color: #dc2626 !important;
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+        }
+        
+        .smooth-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .review-questions-link {
+            color: #3b82f6;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: color 0.2s ease;
+        }
+        .review-questions-link:hover {
+            color: #2563eb;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            animation: slideUp 0.3s ease;
+            position: relative;
+        }
+        
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            color: #6b7280;
+            cursor: pointer;
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .modal-close:hover {
+            background-color: #f3f4f6;
+            color: #374151;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="floating-pattern flex items-center justify-center min-h-screen p-4">
+    <!-- Modal for Review Questions -->
+    <div id="reviewQuestionsModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="closeModal">&times;</span>
+            <h2 class="text-xl font-bold text-gray-800 mb-4">คำถามประเมินความพึงพอใจงานซ่อม</h2>
+            <p class="text-gray-700 mb-3">ประกอบด้วย 5 ข้อดังนี้</p>
+            <ol class="list-decimal list-inside space-y-3 text-gray-700">
+                <li>การประสานงานของแอดมิน</li>
+                <li>ความรวดเร็วการนัดหมาย และแจ้งเตือนก่อนเข้าให้บริการ</li>
+                <li>การแต่งกาย และ ความสุภาพของผู้ให้บริการ</li>
+                <li>ความสะอาดเรียบร้อยของพื้นที่ หลังเข้าให้บริการ</li>
+                <li>ความพึงพอใจต่องานซ่อม และระยะเวลาในการซ่อมงาน</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="w-full max-w-2xl p-4 sm:p-8 transition-all">
+
+        <!-- Global spinner shown while arrival/checking policy after QR scan (icon only) -->
+        
+
+        <!-- Page 1: Input Work Order Numbers -->
+        <div id="page1" class="page">
+            <div class="text-center mb-8">
+                <div class="mb-4">
+                    <div class="bg-white bg-opacity-90 rounded-full p-4 mx-auto w-fit">
+                        <img src="https://i.ibb.co/qvZ5MDv/LOGO-SENA.png" alt="SENA Logo" class="mx-auto h-20 w-auto object-contain logo-shadow">
+                    </div>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-900 [text-shadow:1px_1px_2px_rgba(0,0,0,0.2)]">สร้างแบบสอบถาม</h1>
+                <p class="mt-4 font-bold text-gray-700 [text-shadow:1px_1px_2px_rgba(0,0,0,0.1)]">กรุณากรอกข้อมูลเพื่อสร้างแบบสอบถามความพึงพอใจงานซ่อม</p>
+            </div>
+            
+            <!-- House Number Field -->
+            <div class="bg-white bg-opacity-90 p-6 rounded-xl shadow-lg card-hover mb-6">
+                <label for="house-number" class="block text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-home text-blue-600 mr-2"></i>บ้านเลขที่ <span class="text-red-500">*</span>
+                </label>
+                <input 
+                    type="text" 
+                    id="house-number" 
+                    class="w-full p-3 border border-gray-300 rounded-lg input-focus" 
+                    placeholder="กรุณากรอกบ้านเลขที่" 
+                    required
+                >
+                <p class="text-xs text-gray-500 mt-1">บ้านเลขที่นี้จะใช้สำหรับทุกใบงานในแบบสอบถามนี้</p>
+            </div>
+            
+            <!-- Project Selection Field -->
+            <div class="bg-white bg-opacity-90 p-6 rounded-xl shadow-lg card-hover mb-6">
+                <label for="project-select" class="block text-sm font-semibold text-gray-700 mb-2">
+                    <i class="fas fa-building text-blue-600 mr-2"></i>โครงการ <span class="text-red-500">*</span>
+                </label>
+                <select 
+                    id="project-select" 
+                    class="w-full p-3 border border-gray-300 rounded-lg input-focus" 
+                    required
+                >
+                    <option value="" disabled selected>กำลังโหลดรายการโครงการ...</option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">เลือกโครงการที่ต้องการสร้างแบบสอบถาม</p>
+            </div>
+
+            <div id="work-order-inputs" class="space-y-4 mb-6"></div>
+            <div id="error-message" class="bg-white border border-red-300 text-red-500 text-sm mb-4 p-4 rounded-lg hidden break-words"></div>
+            <button id="add-work-order-btn" class="w-full flex items-center justify-center gap-2 bg-white bg-opacity-90 text-blue-700 font-semibold py-4 px-6 rounded-xl hover:bg-opacity-100 smooth-transition mb-6 card-hover"><i class="fas fa-plus"></i><span>เพิ่มใบงาน</span></button>
+            <button id="continue-btn" class="w-full gradient-button text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 btn-ripple"><span>ดำเนินการต่อ</span></button>
+        </div>
+
+        <!-- Page 2: Confirmation -->
+        <div id="page2" class="page">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl font-bold text-gray-800">สรุปรายการใบงาน</h1>
+                <p class="text-gray-500">โปรดตรวจสอบความถูกต้องของเลขที่ใบงาน</p>
+            </div>
+            <div id="summary-list" class="bg-white bg-opacity-90 p-6 rounded-xl mb-8 space-y-3 shadow-lg"></div>
+            <div class="flex gap-4">
+                <button id="edit-btn" class="w-full bg-white bg-opacity-90 text-gray-800 font-bold py-4 px-6 rounded-xl hover:bg-opacity-100 smooth-transition card-hover">แก้ไข</button>
+                <button id="confirm-btn" class="w-full gradient-button text-white font-bold py-4 px-6 rounded-xl btn-ripple">ยืนยัน</button>
+            </div>
+        </div>
+
+        <!-- Page 3: QR Code -->
+        <div id="page3" class="page">
+            <div class="text-center mb-8">
+                <h1 class="text-2xl font-bold text-gray-800">สร้าง QR Code สำเร็จ</h1>
+                <p class="text-gray-500">สแกน QR Code หรือใช้ลิงก์ด้านล่างเพื่อเริ่มทำแบบสอบถาม</p>
+            </div>
+            <div class="flex justify-center mb-8">
+                <div id="qr-code-container" class="qr-container p-8 rounded-2xl">
+                    <!-- Loading spinner -->
+                    <div id="qr-loading" class="w-64 h-64 flex items-center justify-center">
+                        <div class="text-center">
+                            <i class="fas fa-spinner fa-spin text-4xl text-blue-600 mb-4"></i>
+                            <p class="text-gray-600">กำลังสร้าง QR Code...</p>
+                        </div>
+                    </div>
+                    <!-- QR Code image -->
+                    <img id="qr-code-img" src="" alt="QR Code" class="w-64 h-64 rounded-lg hidden">
+                    <!-- Error message -->
+                    <div id="qr-error" class="w-64 h-64 flex items-center justify-center hidden">
+                        <div class="text-center">
+                            <i class="fas fa-exclamation-triangle text-4xl text-red-500 mb-4"></i>
+                            <p class="text-gray-600 mb-4">ไม่สามารถสร้าง QR Code ได้</p>
+                            <button id="retry-qr-btn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">ลองอีกครั้ง</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center mb-6"></div>
+            <div class="flex flex-col sm:flex-row gap-4">
+                <button id="download-btn" class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-700 smooth-transition btn-ripple"><i class="fas fa-download"></i><span>ดาวน์โหลด</span></button>
+                
+                <button id="create-more-btn" class="w-full bg-gradient-to-r from-gray-100 to-white text-gray-800 font-bold py-4 px-6 rounded-xl border-2 border-gray-300 hover:border-blue-400 hover:from-gray-50 hover:to-gray-100 smooth-transition shadow-lg hover:shadow-xl">สร้างเพิ่ม</button>
+            </div>
+            <div class="text-center mt-4">
+                <a id="review-questions-link" class="review-questions-link block">ดูคำถามรีวิว</a>
+            </div>
+        </div>
+
+        <!-- Page 4: Survey Form -->
+        <div id="surveyPage" class="page">
+            <div id="survey-header" class="text-center mb-4">
+                <h1 class="text-2xl font-bold text-gray-800 mb-4">แบบประเมินความพึงพอใจ</h1>
+                <p class="text-gray-500">สำหรับใบงานเลขที่:</p>
+                <p id="survey-work-orders" class="font-semibold text-lg text-blue-600 break-words"></p>
+            </div>
+            <form id="survey-form" class="space-y-6">
+                <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">ส่วนที่ 1: ประเมินความพึงพอใจ</h2>
+                <div class="question-card p-6 rounded-xl">
+                    <label class="block text-gray-700 font-semibold mb-4">1. การประสานงานของแอดมิน</label>
+                    <div class="rating"><input type="radio" id="q1-5" name="admin_coordination" value="5"><label for="q1-5">★</label><input type="radio" id="q1-4" name="admin_coordination" value="4"><label for="q1-4">★</label><input type="radio" id="q1-3" name="admin_coordination" value="3"><label for="q1-3">★</label><input type="radio" id="q1-2" name="admin_coordination" value="2"><label for="q1-2">★</label><input type="radio" id="q1-1" name="admin_coordination" value="1"><label for="q1-1">★</label></div>
+                </div>
+                <div class="question-card p-6 rounded-xl">
+                    <label class="block text-gray-700 font-semibold mb-4">2. ความรวดเร็วการนัดหมาย และแจ้งเตือนก่อนเข้าให้บริการ</label>
+                    <div class="rating"><input type="radio" id="q2-5" name="scheduling_speed" value="5"><label for="q2-5">★</label><input type="radio" id="q2-4" name="scheduling_speed" value="4"><label for="q2-4">★</label><input type="radio" id="q2-3" name="scheduling_speed" value="3"><label for="q2-3">★</label><input type="radio" id="q2-2" name="scheduling_speed" value="2"><label for="q2-2">★</label><input type="radio" id="q2-1" name="scheduling_speed" value="1"><label for="q2-1">★</label></div>
+                </div>
+                <div class="question-card p-6 rounded-xl">
+                    <label class="block text-gray-700 font-semibold mb-4">3. การแต่งกาย และ ความสุภาพของผู้ให้บริการ</label>
+                    <div class="rating"><input type="radio" id="q3-5" name="technician_manner" value="5"><label for="q3-5">★</label><input type="radio" id="q3-4" name="technician_manner" value="4"><label for="q3-4">★</label><input type="radio" id="q3-3" name="technician_manner" value="3"><label for="q3-3">★</label><input type="radio" id="q3-2" name="technician_manner" value="2"><label for="q3-2">★</label><input type="radio" id="q3-1" name="technician_manner" value="1"><label for="q3-1">★</label></div>
+                </div>
+                <div class="question-card p-6 rounded-xl">
+                    <label class="block text-gray-700 font-semibold mb-4">4. ความสะอาดเรียบร้อยของพื้นที่ หลังเข้าให้บริการ</label>
+                    <div class="rating"><input type="radio" id="q4-5" name="cleanliness" value="5"><label for="q4-5">★</label><input type="radio" id="q4-4" name="cleanliness" value="4"><label for="q4-4">★</label><input type="radio" id="q4-3" name="cleanliness" value="3"><label for="q4-3">★</label><input type="radio" id="q4-2" name="cleanliness" value="2"><label for="q4-2">★</label><input type="radio" id="q4-1" name="cleanliness" value="1"><label for="q4-1">★</label></div>
+                </div>
+                <div class="question-card p-6 rounded-xl">
+                    <label class="block text-gray-700 font-semibold mb-4">5. ความพึงพอใจต่องานซ่อม และระยะเวลาในการซ่อมงาน</label>
+                    <div class="rating"><input type="radio" id="q5-5" name="repair_satisfaction" value="5"><label for="q5-5">★</label><input type="radio" id="q5-4" name="repair_satisfaction" value="4"><label for="q5-4">★</label><input type="radio" id="q5-3" name="repair_satisfaction" value="3"><label for="q5-3">★</label><input type="radio" id="q5-2" name="repair_satisfaction" value="2"><label for="q5-2">★</label><input type="radio" id="q5-1" name="repair_satisfaction" value="1"><label for="q5-1">★</label></div>
+                </div>
+                <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4 pt-4">ส่วนที่ 2: ความคิดเห็นเพิ่มเติม</h2>
+                <div class="question-card p-6 rounded-xl">
+                    <label for="additional_comment" class="block text-gray-700 font-semibold mb-4">กรุณาให้ข้อเสนอแนะเพื่อการพัฒนาปรับปรุง</label>
+                    <textarea id="additional_comment" name="additional_comment" rows="4" class="w-full p-4 border border-gray-300 rounded-lg input-focus" placeholder="ความคิดเห็นของคุณมีความสำคัญต่อการพัฒนาบริการของเรา..."></textarea>
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 px-6 rounded-xl hover:from-green-600 hover:to-emerald-700 smooth-transition flex items-center justify-center gap-2 btn-ripple">ส่งคำตอบ</button>
+            </form>
+            <div id="survey-error" class="hidden text-red-500 text-sm mt-3 text-center">กรุณาตอบทุกคำถามก่อนส่งแบบประเมิน</div>
+            <div id="thank-you-message" class="hidden text-center p-8">
+                <i class="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-800">ขอบคุณครับ!</h2>
+                <p class="text-gray-600">เราได้รับข้อมูลการประเมินของท่านเรียบร้อยแล้ว</p>
+            </div>
+        </div>
+
+
+    </div>
+
+    <script>
+        // Utility: fetch with timeout to avoid long blocking waits
+        async function fetchWithTimeout(resource, options = {}, timeoutMs = 2500) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort('timeout'), timeoutMs);
+            try {
+                const resp = await fetch(resource, { ...options, signal: controller.signal });
+                return resp;
+            } finally {
+                clearTimeout(id);
+            }
+        }
+
+        // เพิ่ม helper function สำหรับดึง IP
+        async function getPublicIp() {
+            try {
+                const res = await fetch('https://api.ipify.org?format=json');
+                if (!res.ok) throw new Error('Failed to get IP');
+                const data = await res.json();
+                return data.ip || '';
+            } catch (err) {
+                console.warn('Could not get public IP:', err);
+                return ''; // กลับค่าว่างได้ ถ้าไม่ดึงได้
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('DOM loaded, initializing app...');
+            const googleAppScriptUrl = 'https://script.google.com/macros/s/AKfycbw6yaGViOIIzNw3w8_Od9hKfVcbkD0t2wALsPCtQPjSSx8vzp-BjP3Afaznd89iLyHExg/exec';
+            let workOrders = [];
+            let houseNumber = ''; // เก็บบ้านเลขที่
+            
+            // Cache สำหรับเก็บผลลัพธ์การเช็คใบงานซ้ำ (เพิ่มความเร็ว ลดการเรียก API ซ้ำ)
+            const duplicateCheckCache = new Map();
+            const CACHE_TTL = 5 * 60 * 1000; // 5 นาที
+
+            // Cache สำหรับรายการโครงการ (เก็บไว้ 1 ชั่วโมง)
+            const projectsCache = {
+                data: null,
+                timestamp: 0,
+                TTL: 60 * 60 * 1000 // 1 ชั่วโมง
+            };
+
+            /**
+             * Helper function สำหรับ escape HTML
+             */
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            /**
+             * ดึงรายการโครงการจาก Backend พร้อม cache
+             */
+            async function loadProjects() {
+                const projectSelect = document.getElementById('project-select');
+                
+                // เช็ค cache ก่อน
+                if (projectsCache.data && (Date.now() - projectsCache.timestamp < projectsCache.TTL)) {
+                    console.log('Using cached projects list');
+                    populateProjectDropdown(projectsCache.data);
+                    return;
+                }
+
+                try {
+                    const url = new URL(googleAppScriptUrl);
+                    url.searchParams.append('action', 'getProjects');
+                    
+                    const response = await fetchWithTimeout(url.href, { method: 'GET' }, 5000);
+                    if (!response.ok) throw new Error('Failed to load projects');
+                    
+                    const result = await response.json();
+                    
+                    if (result.status === 'success' && Array.isArray(result.projects)) {
+                        projectsCache.data = result.projects;
+                        projectsCache.timestamp = Date.now();
+                        populateProjectDropdown(result.projects);
+                    } else {
+                        throw new Error(result.message || 'Invalid response format');
+                    }
+                } catch (error) {
+                    console.error('Error loading projects:', error);
+                    projectSelect.innerHTML = '<option value="" disabled selected>โหลดรายการไม่สำเร็จ กรุณารีเฟรชหน้า</option>';
+                }
+            }
+
+            // ตัวแปรเก็บ Choices.js instance
+            let projectChoices = null;
+
+            /**
+             * แสดงรายการโครงการใน dropdown ด้วย Choices.js (searchable)
+             */
+            function populateProjectDropdown(projects) {
+                const projectSelect = document.getElementById('project-select');
+                
+                if (!projects || projects.length === 0) {
+                    projectSelect.innerHTML = '<option value="" disabled selected>ไม่พบรายการโครงการ</option>';
+                    return;
+                }
+
+                // สร้าง options
+                projectSelect.innerHTML = '<option value="">เลือกโครงการ</option>' +
+                    projects.map(project => `<option value="${escapeHtml(project)}">${escapeHtml(project)}</option>`).join('');
+                
+                // ถ้ามี Choices.js instance อยู่แล้ว ให้ destroy ก่อน
+                if (projectChoices) {
+                    projectChoices.destroy();
+                }
+                
+                // สร้าง Choices.js instance ใหม่
+                projectChoices = new Choices(projectSelect, {
+                    searchEnabled: true,
+                    searchPlaceholderValue: 'พิมพ์เพื่อค้นหาโครงการ...',
+                    noResultsText: 'ไม่พบโครงการที่ค้นหา',
+                    itemSelectText: 'กดเพื่อเลือก',
+                    shouldSort: false,
+                    removeItemButton: false,
+                    position: 'bottom'
+                });
+            }
+
+            // โหลดรายการโครงการทันที
+            loadProjects();
+
+
+            // QR Code Services (หลายตัวเพื่อความเชื่อถือได้)
+            const QR_SERVICES = [
+                {name: 'QR Server', url: (data) => `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data)}`},
+                {name: 'QR Code Generator', url: (data) => `https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=${encodeURIComponent(data)}`},
+                {name: 'QuickChart QR', url: (data) => `https://quickchart.io/qr?text=${encodeURIComponent(data)}&size=250`}
+            ];
+
+            /**
+             * สร้าง QR Code พร้อม parallel loading และ fallback mechanism
+             * ลองทุกบริการพร้อมกันเพื่อความเร็ว ใช้ตัวที่เสร็จก่อน
+             */
+            async function generateQRCode(data) {
+                const qrImg = ui.qrCodeImg;
+                const qrLoading = document.getElementById('qr-loading');
+                const qrError = document.getElementById('qr-error');
+                
+                // แสดง loading state
+                qrLoading.classList.remove('hidden');
+                qrImg.classList.add('hidden');
+                qrError.classList.add('hidden');
+                
+                // สร้าง Promise สำหรับแต่ละบริการ
+                const servicePromises = QR_SERVICES.map(service => {
+                    return new Promise((resolve, reject) => {
+                        const testImg = new Image();
+                        const timeout = setTimeout(() => {
+                            testImg.src = ''; // ยกเลิกการโหลด
+                            reject(new Error(`${service.name} timeout`));
+                        }, 8000); // 8 วินาที timeout
+                        
+                        testImg.onload = () => {
+                            clearTimeout(timeout);
+                            console.log(`QR Code loaded successfully from ${service.name}`);
+                            resolve(service.url(data));
+                        };
+                        
+                        testImg.onerror = () => {
+                            clearTimeout(timeout);
+                            reject(new Error(`${service.name} failed to load`));
+                        };
+                        
+                        testImg.src = service.url(data);
+                    });
+                });
+                
+                try {
+                    // ใช้ Promise.any() เพื่อรอตัวที่เสร็จก่อน
+                    const qrUrl = await Promise.any(servicePromises);
+                    
+                    // สำเร็จ - แสดงผล
+                    qrImg.src = qrUrl;
+                    qrImg.classList.remove('hidden');
+                    qrLoading.classList.add('hidden');
+                    console.log('QR Code generated successfully');
+                    return qrUrl;
+                    
+                } catch (error) {
+                    // ทุกบริการล้มเหลว
+                    console.error('All QR services failed:', error);
+                    qrLoading.classList.add('hidden');
+                    qrError.classList.remove('hidden');
+                    throw new Error('All QR services failed');
+                }
+            }
+
+            const ui = {
+                pages: document.querySelectorAll('.page'),
+                workOrderInputs: document.getElementById('work-order-inputs'),
+                errorMessage: document.getElementById('error-message'),
+                summaryList: document.getElementById('summary-list'),
+                qrCodeImg: document.getElementById('qr-code-img'),
+                qrLoading: document.getElementById('qr-loading'),
+                qrError: document.getElementById('qr-error'),
+                
+                surveyWorkOrders: document.getElementById('survey-work-orders'),
+                surveyForm: document.getElementById('survey-form'),
+                surveyHeader: document.getElementById('survey-header'),
+                thankYouMessage: document.getElementById('thank-you-message'),
+                continueBtn: document.getElementById('continue-btn'),
+                submitBtn: document.querySelector('button[type="submit"]')
+            };
+
+            const showPage = (pageId) => {
+                console.log('showPage called with:', pageId);
+                ui.pages.forEach(page => page.classList.remove('active'));
+                const activePage = document.getElementById(pageId);
+                if (activePage) {
+                    activePage.classList.add('active');
+                    console.log('Page activated:', pageId);
+                } else {
+                    console.error('Page not found:', pageId);
+                }
+            };
+
+            const addWorkOrderInput = () => {
+                const div = document.createElement('div');
+                div.className = 'work-order-group work-order-card p-6 rounded-xl shadow-lg space-y-4';
+                div.innerHTML = `
+                    <div class="grid grid-cols-[auto_1fr] gap-4 items-center">
+                        <label class="text-sm font-medium text-gray-600 whitespace-nowrap">ประเภทใบงาน:</label>
+                        <select class="type-select p-3 border border-gray-300 rounded-xl w-full input-focus"><option value="SF">SF</option><option value="SR">SR</option></select>
+                    </div>
+                    <div class="grid grid-cols-[1fr_auto] gap-2 items-center">
+                        <input type="text" class="number-input w-full p-3 border border-gray-300 rounded-xl input-focus" placeholder="กรอกเลขที่ใบงาน">
+                        <button type="button" class="remove-btn flex items-center justify-center w-10 h-10 text-gray-400 hover:text-red-500 smooth-transition"><i class="fas fa-trash-alt"></i></button>
+                    </div>`;
+                ui.workOrderInputs.appendChild(div);
+
+                const typeSelect = div.querySelector('.type-select');
+                const numberInput = div.querySelector('.number-input');
+                const updateFields = () => {
+                    const isSF = typeSelect.value === 'SF';
+                    numberInput.placeholder = isSF ? 'กรอกเลขที่ใบงาน 14 หลัก (SF)' : 'กรอกเลขที่ใบงาน 10 หลัก (SR)';
+                    numberInput.maxLength = isSF ? 14 : 10;
+                    // ตัดความยาวเกินทันทีเมื่อสลับประเภท
+                    if (numberInput.value.length > numberInput.maxLength) {
+                        numberInput.value = numberInput.value.slice(0, numberInput.maxLength);
+                    }
+                };
+
+                // กรองให้เป็นตัวเลขล้วน
+                numberInput.addEventListener('input', () => {
+                    numberInput.value = numberInput.value.replace(/\D+/g, '');
+                    if (numberInput.maxLength) {
+                        numberInput.value = numberInput.value.slice(0, numberInput.maxLength);
+                    }
+                });
+
+                typeSelect.addEventListener('change', updateFields);
+                div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
+                updateFields();
+            };
+
+            const validateWorkOrder = (type, fullNumber) => {
+                if (!type || !/^\d+$/.test(fullNumber)) return { isValid: false, reason: 'format_error' };
+                if (type === 'SF' && fullNumber.length !== 14) return { isValid: false, reason: 'format_error' };
+                if (type === 'SR' && fullNumber.length !== 10) return { isValid: false, reason: 'format_error' };
+                if (type !== 'SF' && type !== 'SR') return { isValid: false, reason: 'format_error' };
+                return { isValid: true };
+            };
+
+            const checkWorkOrdersExistence = async (orders, silent = false, timeoutMs = 6000, retries = 1) => {
+                if (!orders || orders.length === 0) return [];
+                
+                // เช็ค cache ก่อน
+                const cacheKey = orders.slice().sort().join(',');
+                const cached = duplicateCheckCache.get(cacheKey);
+                if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+                    console.log('Using cached duplicate check result');
+                    return cached.data;
+                }
+                
+                const checkUrl = new URL(googleAppScriptUrl);
+                checkUrl.searchParams.append('action', 'checkWorkOrders');
+                checkUrl.searchParams.append('orders', orders.join(','));
+
+                try {
+                    const response = await fetchWithTimeout(checkUrl.href, { method: 'GET' }, timeoutMs);
+                    if (!response.ok) throw new Error(`Network response was not ok, status: ${response.status}`);
+                    // พยายาม parse JSON หากล้มเหลวให้โยน error เพื่อลองใหม่
+                    const text = await response.text();
+                    let result;
+                    try { result = JSON.parse(text); }
+                    catch (e) { throw new Error('Invalid JSON from script: ' + text.slice(0, 200)); }
+                    
+                    const existingOrders = result.status === 'success' ? (result.existingOrders || []) : [];
+                    
+                    // เก็บผลลัพธ์ลง cache
+                    duplicateCheckCache.set(cacheKey, {
+                        data: existingOrders,
+                        timestamp: Date.now()
+                    });
+                    
+                    if (result.status === 'success') return existingOrders;
+                    throw new Error(result.message || 'Failed to check work orders from script.');
+                } catch (error) {
+                    console.error('Error checking work order existence:', error);
+                    if (retries > 0) {
+                        // backoff เล็กน้อยและลองใหม่ด้วย timeout ที่มากขึ้น
+                        await new Promise(r => setTimeout(r, 600));
+                        return checkWorkOrdersExistence(orders, silent, Math.min(timeoutMs + 2000, 12000), retries - 1);
+                    }
+                    if (!silent) {
+                        alert('ไม่สามารถตรวจสอบใบงานซ้ำได้ ขณะนี้ระบบอาจช้า กรุณาลองอีกครั้งในภายหลัง');
+                    }
+                    // เมื่อ error: ถ้า silent ให้คืน [] เพื่่อไม่รบกวน UX; ถ้าไม่ silent คืน orders เพื่อกันซ้ำ
+                    return silent ? [] : orders;
+                }
+            };
+
+            const handleContinue = async () => {
+                ui.continueBtn.disabled = true;
+                ui.continueBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>กำลังตรวจสอบ...</span>';
+                ui.errorMessage.classList.add('hidden');
+                document.querySelectorAll('.work-order-group .input-error').forEach(el => el.classList.remove('input-error'));
+
+                // ตรวจสอบบ้านเลขที่
+                const houseNumberInput = document.getElementById('house-number');
+                const houseNumber = houseNumberInput.value.trim();
+                if (!houseNumber) {
+                    ui.errorMessage.innerHTML = '<p class="font-semibold">กรุณากรอกบ้านเลขที่</p>';
+                    ui.errorMessage.classList.remove('hidden');
+                    houseNumberInput.classList.add('input-error');
+                    ui.continueBtn.disabled = false;
+                    ui.continueBtn.innerHTML = '<span>ดำเนินการต่อ</span>';
+                    return;
+                }
+
+                // ลบ error class จากฟิลด์ที่ผ่านการตรวจสอบแล้ว
+                houseNumberInput.classList.remove('input-error');
+                
+                // เก็บบ้านเลขที่ไว้ใช้ในขั้นตอนต่อไป  
+                window.currentHouseNumber = houseNumber;
+
+                // ตรวจสอบโครงการ
+                const projectSelect = document.getElementById('project-select');
+                const selectedProject = projectSelect.value;
+                
+                if (!selectedProject) {
+                    ui.errorMessage.innerHTML = '<p class="font-semibold">กรุณาเลือกโครงการ</p>';
+                    ui.errorMessage.classList.remove('hidden');
+                    projectSelect.classList.add('input-error');
+                    ui.continueBtn.disabled = false;
+                    ui.continueBtn.innerHTML = '<span>ดำเนินการต่อ</span>';
+                    return;
+                }
+                
+                projectSelect.classList.remove('input-error');
+                window.currentProject = selectedProject;
+
+                let allPotentiallyValidWOs = [];
+                let invalidFormatWOs = [];
+
+                document.querySelectorAll('.work-order-group').forEach(group => {
+                    const type = group.querySelector('.type-select').value;
+                    const fullNumber = group.querySelector('.number-input').value.trim();
+                    const validation = validateWorkOrder(type, fullNumber);
+                    const fullWO = `${type}${fullNumber}`;
+
+                    if (validation.isValid) {
+                        allPotentiallyValidWOs.push({ wo: fullWO, group: group });
+                    } else {
+                        invalidFormatWOs.push({ wo: fullWO, msg: validation.reason });
+                        group.querySelectorAll('select, input').forEach(el => el.classList.add('input-error'));
+                    }
+                });
+
+                let finalErrors = [...invalidFormatWOs];
+                if (allPotentiallyValidWOs.length > 0) {
+                    const woStringsToCheck = allPotentiallyValidWOs.map(item => item.wo);
+                    const existingOrders = await checkWorkOrdersExistence(woStringsToCheck, /*silent*/ false, /*timeoutMs*/ 8000, /*retries*/ 1);
+                    
+                    let newValidWOs = [];
+                    allPotentiallyValidWOs.forEach(item => {
+                        if (existingOrders.includes(item.wo)) {
+                            finalErrors.push({ wo: item.wo, msg: 'ใบงานนี้เคยถูกทำแบบสอบถามไปแล้ว' });
+                            item.group.querySelectorAll('select, input').forEach(el => el.classList.add('input-error'));
+                        } else {
+                            newValidWOs.push(item.wo);
+                        }
+                    });
+                    workOrders = [...new Set(newValidWOs)];
+                } else {
+                    workOrders = [];
+                }
+
+                if (finalErrors.length > 0) {
+                    const errorLis = finalErrors.map(e => {
+                        if (e.msg === 'format_error') {
+                            return `<li>เลขที่ใบงาน <b>${e.wo}</b> ไม่ครบถ้วน กรุณาตรวจสอบ</li>`;
+                        }
+                        return `<li><b>${e.wo}</b>: ${e.msg}</li>`;
+                    }).join('');
+                    ui.errorMessage.innerHTML = `<p class="font-semibold">มีข้อผิดพลาดกับใบงานต่อไปนี้:</p><ul class="list-disc list-inside mt-2">${errorLis}</ul>`;
+                    ui.errorMessage.classList.remove('hidden');
+                } else if (workOrders.length > 0) {
+                    // ใช้ DocumentFragment เพื่อประสิทธิภาพที่ดีกว่า innerHTML
+                    const fragment = document.createDocumentFragment();
+                    workOrders.forEach(wo => {
+                        const type = wo.substring(0, 2);
+                        const typeClass = type === 'SF' ? 'sf-type' : 'sr-type';
+                        const typeIcon = type === 'SF' ? 'fas fa-tools' : 'fas fa-cogs';
+                        const typeName = type === 'SF' ? 'Service Fix' : 'Service Request';
+                        
+                        const card = document.createElement('div');
+                        card.className = `work-order-card ${typeClass} p-4 rounded-lg flex items-center space-x-4`;
+                        card.innerHTML = `
+                            <div class="flex-shrink-0">
+                                <i class="${typeIcon} text-2xl text-blue-600"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <div class="font-bold text-gray-900">${wo}</div>
+                                <div class="text-sm text-gray-600">${typeName}</div>
+                            </div>
+                        `;
+                        fragment.appendChild(card);
+                    });
+                    ui.summaryList.replaceChildren(fragment);
+                    showPage('page2');
+                }
+
+                ui.continueBtn.disabled = false;
+                ui.continueBtn.innerHTML = '<span>ดำเนินการต่อ</span>';
+            };
+
+            const handleSurveySubmit = async (e) => {
+                e.preventDefault();
+                // ถ้าตรวจพบใบงานซ้ำจากการเช็คแบบ background ให้บล็อกการส่ง
+                if (window.duplicateOrdersDetected) {
+                    alert('มีใบงานที่ถูกส่งไปแล้ว ระบบจะไม่บันทึกซ้ำ');
+                    return;
+                }
+                ui.submitBtn.disabled = true;
+                ui.submitBtn.innerHTML = '<i class="fas fa-check-circle animate-pulse text-xl"></i> <span>กำลังบันทึก...</span>';
+
+                const formData = new FormData(e.target);
+                formData.append('workOrders', new URLSearchParams(window.location.search).get('jobs'));
+
+                // เพิ่มข้อมูลบ้านเลขที่
+                if (window.currentHouseNumber) {
+                    formData.append('houseNumber', window.currentHouseNumber);
+                }
+
+                // เพิ่มข้อมูล project ถ้ามี
+                if (window.currentProject) {
+                    formData.append('project', window.currentProject);
+                }
+
+                try {
+                    // ดึง IP ก่อน (timeout 500ms)
+                    const ip = await Promise.race([
+                        getPublicIp().catch(() => ''),
+                        new Promise(resolve => setTimeout(() => resolve(''), 500))
+                    ]);
+                    
+                    // เพิ่ม IP ลงใน formData ถ้าได้
+                    if (ip) {
+                        formData.append('userIp', ip);
+                        console.log('IP obtained and added to form:', ip);
+                    } else {
+                        console.warn('Could not obtain IP within timeout');
+                    }
+
+                    // ส่งข้อมูลพร้อม IP (หรือไม่มี IP ถ้าดึงไม่ได้)
+                    await fetch(googleAppScriptUrl, { method: 'POST', mode: 'no-cors', body: formData });
+
+                    console.log('Survey data submission initiated.');
+                    ui.surveyForm.classList.add('hidden');
+                    ui.surveyHeader.classList.add('hidden');
+                    ui.thankYouMessage.classList.remove('hidden');
+                } catch (error) {
+                    console.error('Submission error:', error);
+                    alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองอีกครั้ง');
+                    ui.submitBtn.disabled = false;
+                    ui.submitBtn.innerHTML = 'ส่งคำตอบ';
+                }
+            };
+
+            const handleSurveyView = async () => {
+                const jobsParam = new URLSearchParams(window.location.search).get('jobs');
+                if (!jobsParam) return false;
+                const jobs = jobsParam.split(',');
+
+                // อ่านบ้านเลขที่จาก URL ถ้ามี
+                const houseParam = new URLSearchParams(window.location.search).get('houseNumber');
+                if (houseParam) {
+                    try { window.currentHouseNumber = decodeURIComponent(houseParam); } catch (e) { window.currentHouseNumber = houseParam; }
+                }
+
+                // อ่านโครงการจาก URL ถ้ามี
+                const projectParam = new URLSearchParams(window.location.search).get('project');
+                if (projectParam) {
+                    try { window.currentProject = decodeURIComponent(projectParam); } catch (e) { window.currentProject = projectParam; }
+                }
+
+                // แสดงหน้าแบบสอบถามทันที (non-blocking UX)
+                window.currentJobs = jobs;
+                showPage('surveyPage');
+                ui.surveyForm.classList.remove('hidden');
+                ui.surveyHeader.classList.remove('hidden');
+                ui.thankYouMessage.classList.add('hidden');
+                if (ui.surveyWorkOrders) ui.surveyWorkOrders.textContent = jobs.join(', ');
+
+                // ทำการตรวจสอบใบงานซ้ำแบบ background (ไม่บล็อกหน้า)
+                checkWorkOrdersExistence(jobs, /*silent*/ true, /*timeoutMs*/ 5000, /*retries*/ 0)
+                    .then(existingOrders => {
+                        // ถ้ามีใบงานซ้ำ ให้โชว์ thank-you และปิดฟอร์ม
+                        if (existingOrders.length > 0 && jobs.some(job => existingOrders.includes(job))) {
+                            ui.surveyForm.classList.add('hidden');
+                            ui.surveyHeader.classList.add('hidden');
+                            ui.thankYouMessage.classList.remove('hidden');
+                            // ตั้ง flag ป้องกันการ submit ซ้ำ
+                            window.duplicateOrdersDetected = true;
+                        } else {
+                            window.duplicateOrdersDetected = false;
+                        }
+                    })
+                    .catch(err => {
+                        console.warn('Background duplicate check failed:', err);
+                        // ไม่ตั้ง flag เพื่อไม่บล็อกผู้ใช้
+                    });
+                return true;
+            };
+
+
+
+            // Validation: require all 5 rating questions answered before enabling submit
+            function isSurveyComplete() {
+                const required = ['admin_coordination','scheduling_speed','technician_manner','cleanliness','repair_satisfaction'];
+                for (let i = 0; i < required.length; i++) {
+                    if (!document.querySelector('input[name="' + required[i] + '"]:checked')) return false;
+                }
+                return true;
+            }
+
+            function updateSurveySubmitState() {
+                const submitBtn = ui.submitBtn;
+                const surveyError = document.getElementById('survey-error');
+                if (isSurveyComplete()) {
+                    submitBtn.disabled = false;
+                    surveyError.classList.add('hidden');
+                } else {
+                    submitBtn.disabled = true;
+                    surveyError.classList.remove('hidden');
+                }
+            }
+
+            // Event Delegation สำหรับ rating inputs (ลดจำนวน event listeners)
+            ui.surveyForm.addEventListener('change', (e) => {
+                if (e.target.type === 'radio' && e.target.name) {
+                    updateSurveySubmitState();
+                }
+            });
+
+            // Ensure submit button initial state is disabled until ratings provided
+            ui.submitBtn.disabled = true;
+
+
+
+
+            // Initial Setup
+            document.getElementById('add-work-order-btn').addEventListener('click', addWorkOrderInput);
+            ui.continueBtn.addEventListener('click', handleContinue);
+            document.getElementById('edit-btn').addEventListener('click', () => showPage('page1'));
+            document.getElementById('confirm-btn').addEventListener('click', async () => {
+                const base = window.location.href.split('?')[0];
+                let fullUrl = `${base}?jobs=${workOrders.join(',')}`;
+                if (window.currentHouseNumber) fullUrl += `&houseNumber=${encodeURIComponent(window.currentHouseNumber)}`;
+                if (window.currentProject) fullUrl += `&project=${encodeURIComponent(window.currentProject)}`;
+                showPage('page3');
+                
+                try {
+                    const qrUrl = await generateQRCode(fullUrl);
+                    // เก็บ URL สำหรับปุ่มดาวน์โหลดเท่านั้น
+                    ui.qrCodeImg.dataset.qrUrl = qrUrl || ui.qrCodeImg.src || '';
+                } catch (error) {
+                    console.error('Failed to generate QR code:', error);
+                }
+            });
+            document.getElementById('download-btn').addEventListener('click', async () => {
+                if (!ui.qrCodeImg.src) {
+                    alert('QR Code ยังไม่พร้อม กรุณารอสักครู่');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(ui.qrCodeImg.src);
+                    const blob = await response.blob();
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `survey-qrcode-${workOrders.join('-')}.png`;
+                    a.click();
+                    URL.revokeObjectURL(a.href);
+                } catch (error) { 
+                    console.error('Download error:', error); 
+                    alert('ไม่สามารถดาวน์โหลดได้ กรุณาลองอีกครั้ง');
+                }
+            });
+            
+            // Retry QR Code generation
+            document.addEventListener('click', (e) => {
+                if (e.target && e.target.id === 'retry-qr-btn') {
+                    const base = window.location.href.split('?')[0];
+                    let fullUrl = `${base}?jobs=${workOrders.join(',')}`;
+                    if (window.currentHouseNumber) fullUrl += `&houseNumber=${encodeURIComponent(window.currentHouseNumber)}`;
+                    if (window.currentProject) fullUrl += `&project=${encodeURIComponent(window.currentProject)}`;
+                    generateQRCode(fullUrl).catch(error => {
+                        console.error('Retry failed:', error);
+                    });
+                }
+            });
+
+            // (ลบปุ่มเปิดแบบสอบถามสำหรับ QA แล้ว)
+            
+            document.getElementById('create-more-btn').addEventListener('click', () => window.location.href = window.location.pathname);
+            ui.surveyForm.addEventListener('submit', handleSurveySubmit);
+
+            // Modal functionality
+            const modal = document.getElementById('reviewQuestionsModal');
+            const reviewLink = document.getElementById('review-questions-link');
+            const closeModal = document.getElementById('closeModal');
+
+            reviewLink.addEventListener('click', function() {
+                modal.classList.add('show');
+            });
+
+            closeModal.addEventListener('click', function() {
+                modal.classList.remove('show');
+            });
+
+            window.addEventListener('click', function(event) {
+                if (event.target === modal) {
+                    modal.classList.remove('show');
+                }
+            });
+
+            if (!await handleSurveyView()) {
+                console.log('No survey view, showing page1');
+                showPage('page1');
+                addWorkOrderInput();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,437 @@
+// ===============================================================
+// --- การตั้งค่า: กรุณาตรวจสอบ ID และชื่อชีต ---
+// ===============================================================
+var SPREADSHEET_ID = "1_zIjC2rP561MGdgD7dTkafpTCjcrZIXiZEDj_Y_5K3M";
+var SURVEY_RESPONSES_SHEET_NAME = "SurveyResponses";
+var WORK_ORDER_LOG_SHEET_NAME   = "WorkOrderLog";
+var MIGRATETOSH_SHEET_NAME      = "MigratetoSH"; // ชีทเป้าหมายสำหรับ SerialNumber
+
+// Secret key สำหรับ HMAC IP (เก็บใน Properties Service)
+var HMAC_SECRET_PROPERTY = "IP_HASH_SECRET"; // Property name
+// ===============================================================
+
+
+/**
+ * ฟังก์ชัน HMAC-SHA256 สำหรับ hash IP address
+ */
+function hmacSha256_(data, secret) {
+  try {
+    var signature = Utilities.computeHmacSha256Signature(data, secret);
+    return Utilities.base64Encode(signature);
+  } catch (error) {
+    Logger.log("Error computing HMAC: " + error.toString());
+    return ""; // ส่งค่าว่างถ้า hash ไม่ได้
+  }
+}
+
+/**
+ * สร้าง secret bytes แบบเข้ากันได้กับ Apps Script (ไม่มี getRandomValues)
+ */
+function generateSecretBytes_() {
+  var seed = Utilities.getUuid() + ":" + Date.now() + ":" + Math.random();
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, seed);
+  // ได้ 32 bytes อยู่แล้วจาก SHA-256
+  return bytes;
+}
+
+/**
+ * ดึง secret key จาก Properties Service หรือสร้างใหม่ถ้ายังไม่มี
+ */
+function getOrCreateHmacSecret_() {
+  try {
+    var properties = PropertiesService.getScriptProperties();
+    var secret = properties.getProperty(HMAC_SECRET_PROPERTY);
+    
+    if (!secret) {
+      // สร้าง secret ใหม่ (32 bytes) แล้ว base64
+      var randomBytes = generateSecretBytes_();
+      secret = Utilities.base64Encode(randomBytes);
+      properties.setProperty(HMAC_SECRET_PROPERTY, secret);
+      Logger.log("Created new HMAC secret key");
+    }
+    return secret;
+  } catch (error) {
+    Logger.log("Error managing HMAC secret: " + error.toString());
+    return "fallback-secret-key"; // fallback ถ้าเข้าถึง Properties ไม่ได้
+  }
+}
+
+/**
+ * Hash IP address ด้วย HMAC-SHA256
+ */
+function hashIpAddress_(ipAddress) {
+  if (!ipAddress) return "";
+  var secret = getOrCreateHmacSecret_();
+  var hashedIp = hmacSha256_(ipAddress, secret);
+  // เพิ่ม prefix เพื่อระบุว่าเป็น hashed value
+  return hashedIp ? ("hmac_" + hashedIp) : "";
+}
+
+/** ===== Utilities ===== */
+function openSheet_(ss, name) {
+  var sh = ss.getSheetByName(name);
+  return sh || null;
+}
+
+function getHeaders_(sh) {
+  if (!sh || sh.getLastRow() < 1) return [];
+  return sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn()))
+           .getValues()[0]
+           .map(function (v) { return String(v || "").trim(); });
+}
+
+function colIndex1_(headers, name) {
+  if (!headers || !name) return null;
+  var target = String(name || "").trim().toLowerCase();
+  for (var i = 0; i < headers.length; i++) {
+    var h = String(headers[i] || "").trim().toLowerCase();
+    if (h === target) return i + 1; // 1-based
+  }
+  return null;
+}
+
+function ensureSheetWithHeaders_(ss, name, headers) {
+  var sh = openSheet_(ss, name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.appendRow(headers);
+    return sh;
+  }
+  var cur = getHeaders_(sh);
+  if (cur.length === 0) { // ชีทว่างจริง ๆ
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+    return sh;
+  }
+  // ถ้าขาดหัวคอลัมน์ จะเพิ่มท้ายให้ครบ
+  var toAdd = headers.filter(function (h) { return cur.indexOf(h) === -1; });
+  if (toAdd.length) {
+    var startCol = cur.length + 1;
+    sh.getRange(1, startCol, 1, toAdd.length).setValues([toAdd]);
+  }
+  return sh;
+}
+
+/** เพิ่มเลขที่ใบงานลงชีท MigratetoSH ที่คอลัมน์ SerialNumber (กันซ้ำ) */
+function appendSerialsToMigratetoSH_(ss, serialList) {
+  if (!serialList || !serialList.length) return 0;
+
+  var target  = ensureSheetWithHeaders_(ss, MIGRATETOSH_SHEET_NAME, ["SerialNumber"]);
+  var headers = getHeaders_(target);
+  var snCol   = colIndex1_(headers, "SerialNumber");
+  if (!snCol) throw new Error("ไม่พบ/สร้างคอลัมน์ SerialNumber ไม่ได้ในชีท " + MIGRATETOSH_SHEET_NAME);
+
+  var lastRow = target.getLastRow();
+  var existing = new Set();
+  if (lastRow > 1) {
+    var existingVals = target.getRange(2, snCol, lastRow - 1, 1).getValues();
+    for (var i = 0; i < existingVals.length; i++) {
+      var v = String(existingVals[i][0] || "").trim();
+      if (v) existing.add(v);
+    }
+  }
+
+  var toInsert = [];
+  var actualLastCol = Math.max(1, headers.length); // ใช้จำนวน header เป็นหลัก
+  serialList.forEach(function (sn) {
+    var clean = String(sn || "").trim();
+    if (!clean) return;
+    if (!existing.has(clean)) {
+      var row = new Array(actualLastCol).fill("");
+      row[snCol - 1] = clean;
+      toInsert.push(row);
+      existing.add(clean);
+    }
+  });
+
+  if (toInsert.length) {
+    target.getRange(target.getLastRow() + 1, 1, toInsert.length, actualLastCol).setValues(toInsert);
+  }
+  return toInsert.length;
+}
+
+/**
+ * จัดการคำขอแบบ GET: ใช้สำหรับตรวจสอบสถานะใบงาน
+ */
+function doGet(e) {
+  try {
+    var action = e.parameter.action;
+
+    // เพิ่ม API endpoint สำหรับดึงรายการโครงการ
+    if (action === "getProjects") {
+      return getProjectsList_();
+    }
+
+    if (action === "checkWorkOrders") {
+      var spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var logSheet    = spreadsheet.getSheetByName(WORK_ORDER_LOG_SHEET_NAME);
+      var userIp      = e.parameter.userIp || '';
+      
+      if (!logSheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ "status": "success", "existingOrders": [] }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var ordersToCheckStr = e.parameter.orders || '';
+      if (!ordersToCheckStr) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ "status": "success", "existingOrders": [] }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var ordersToCheck = ordersToCheckStr.split(',');
+
+      if (userIp) {
+        Logger.log("Check request from IP: " + userIp + " for orders: " + ordersToCheck.join(", "));
+      }
+
+      var existingOrders = logSheet.getLastRow() > 1
+        ? logSheet.getRange(2, 1, logSheet.getLastRow() - 1, 1).getValues().map(function(r){return r[0];})
+        : [];
+
+      var foundOrders = ordersToCheck
+        .map(function (s) { return String(s || '').trim(); })
+        .filter(function (order) { return order && existingOrders.indexOf(order) !== -1; });
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ "status": "success", "existingOrders": foundOrders }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    return ContentService.createTextOutput("Invalid action.").setMimeType(ContentService.MimeType.TEXT);
+
+  } catch (error) {
+    Logger.log("doGet Error: " + error.toString());
+    return ContentService
+      .createTextOutput(JSON.stringify({ "status": "error", "message": error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+
+/**
+ * ดึงรายชื่อโครงการจาก Sheet 'Project'
+ */
+function getProjectsList_() {
+  try {
+    Logger.log("getProjectsList_ called");
+    var spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    Logger.log("Spreadsheet opened successfully");
+    
+    var projectsSheet = spreadsheet.getSheetByName('Project');
+    Logger.log("Looking for sheet: 'Project'");
+    
+    if (!projectsSheet) {
+      Logger.log("Project sheet NOT found");
+      // ลอง list ชื่อ sheets ทั้งหมด
+      var allSheets = spreadsheet.getSheets();
+      var sheetNames = allSheets.map(function(s) { return s.getName(); }).join(", ");
+      Logger.log("Available sheets: " + sheetNames);
+      
+      return ContentService
+        .createTextOutput(JSON.stringify({ 
+          status: "error", 
+          message: "Project sheet not found. Available sheets: " + sheetNames
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    Logger.log("Project sheet found!");
+
+    // ดึงข้อมูลจากคอลัมน์ที่ 1 เริ่มจาก row 2
+    var lastRow = projectsSheet.getLastRow();
+    Logger.log("Last row: " + lastRow);
+    
+    if (lastRow < 2) {
+      Logger.log("No data in Project sheet");
+      return ContentService
+        .createTextOutput(JSON.stringify({ 
+          status: "success", 
+          projects: [] 
+        }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    var data = projectsSheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    Logger.log("Data retrieved: " + data.length + " rows");
+    
+    var projects = data
+      .map(function(row) { return row[0]; })
+      .filter(function(name) { 
+        return name && String(name).trim() !== ''; 
+      });
+    
+    Logger.log("Projects found: " + projects.length);
+    Logger.log("Projects: " + JSON.stringify(projects));
+
+    return ContentService
+      .createTextOutput(JSON.stringify({ 
+        status: "success", 
+        projects: projects 
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (err) {
+    Logger.log("Error in getProjectsList_: " + err.toString());
+    Logger.log("Error stack: " + err.stack);
+    return ContentService
+      .createTextOutput(JSON.stringify({ 
+        status: "error", 
+        message: err.toString(),
+        stack: err.stack
+      }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+
+/**
+ * จัดการคำขอแบบ POST: บันทึกข้อมูลแบบสอบถาม (1 แถว ต่อ 1 ใบงาน)
+ * และเพิ่มเลขที่ใบงานไปยังชีท MigratetoSH คอลัมน์ SerialNumber
+ */
+function doPost(e) {
+  try {
+    var spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var timestamp   = new Date();
+    var responseId  = Utilities.getUuid(); // ID ร่วมสำหรับ request ชุดนี้
+
+    // --- สร้างชีตและหัวข้อคอลัมน์ หากยังไม่มี ---
+    // ลำดับ Header ที่ถูกต้องสำหรับ appendRow
+    var surveySheet = ensureSheetWithHeaders_(spreadsheet, SURVEY_RESPONSES_SHEET_NAME, [
+      "responseId", "submissionDate", "workOrderIds", "Unit", "ProjectName", "IP",
+      "admin_coordination", "scheduling_speed", "technician_manner",
+      "cleanliness", "repair_satisfaction", "comment"
+    ]);
+    var logSheet = ensureSheetWithHeaders_(spreadsheet, WORK_ORDER_LOG_SHEET_NAME, [
+      "workOrderId", "status", "responseId", "completionDate"
+    ]);
+
+    // --- ดึงข้อมูลส่วนกลางจากฟอร์ม ---
+    var workOrdersStr        = e.parameter.workOrders || '';
+    var userIp               = e.parameter.userIp     || '';
+    
+    // Debug log สำหรับ IP
+    if (!userIp || userIp.trim() === '') {
+      Logger.log('⚠️ WARNING: userIp parameter is EMPTY or not provided');
+    } else {
+      Logger.log('✓ userIp received: ' + userIp);
+    }
+    
+    // กำหนดค่าให้ตรงตามคอลัมน์ที่ต้องการ
+    var unit = e.parameter.houseNumber || ''; // คอลัมน์ Unit = บ้านเลขที่
+    var project = e.parameter.project || ''; // คอลัมน์ Project = โครงการ
+
+    // Hash IP เพื่อเก็บในคอลัมน์ IP
+    var hashedIp = hashIpAddress_(userIp);
+
+    // Debug logs
+    try { Logger.log('doPost params: ' + JSON.stringify(e.parameter || {})); } catch (logErr) { Logger.log('doPost params: (unserializable)'); }
+    Logger.log('doPost houseNumber (unit)=' + String(unit || ''));
+    Logger.log('doPost project=' + String(project || ''));
+    Logger.log('doPost hashedIp=' + String(hashedIp || ''));
+
+    // ดึงข้อมูลส่วนคำถามแบบประเมิน
+    var adminCoordination   = e.parameter.admin_coordination  || '';
+    var schedulingSpeed     = e.parameter.scheduling_speed    || '';
+    var technicianManner    = e.parameter.technician_manner   || '';
+    var cleanliness         = e.parameter.cleanliness         || '';
+    var repairSatisfaction  = e.parameter.repair_satisfaction || '';
+    var comment             = e.parameter.additional_comment  || '';
+
+    // --- แตกใบงานเป็นรายการ ---
+    var workOrders = workOrdersStr.split(/[\s,;]+/).map(function(s){return s.trim();}).filter(Boolean);
+    var newSerials = [];
+
+    // Log header เพื่อดีบัก mapping
+    var surveyHeadersForDebug = getHeaders_(surveySheet) || [];
+    Logger.log('SurveyResponses headers: ' + (surveyHeadersForDebug.length ? surveyHeadersForDebug.join(',') : '(no headers)'));
+
+    workOrders.forEach(function(order) {
+      var workOrderId = order.trim();
+      if (workOrderId === '') return; 
+
+      var headers = getHeaders_(surveySheet) || [];
+      var row = new Array(Math.max(1, headers.length)).fill("");
+
+      function setByName(name, value) {
+        var idx = colIndex1_(headers, name);
+        if (idx) row[idx - 1] = value;
+      }
+
+      function resolveHeader(headers, aliases) {
+        for (var i = 0; i < aliases.length; i++) {
+          var a = aliases[i];
+          var idx = colIndex1_(headers, a);
+          if (idx) return { name: a, index: idx };
+        }
+        return null;
+      }
+
+      function setByAlias(aliases, value) {
+        var found = resolveHeader(headers, aliases);
+        if (found) {
+          row[found.index - 1] = value;
+        } else {
+          Logger.log('Warning: none of aliases [' + aliases.join(',') + '] found in SurveyResponses headers: ' + headers.join(','));
+        }
+      }
+
+      // กำหนดค่าตามชื่อคอลัมน์ที่ต้องการ
+      setByName('responseId', responseId);
+      setByName('submissionDate', timestamp);
+      setByName('workOrderIds', workOrderId);
+
+      // ✅ แก้บั๊ก: ส่งค่า unit (บ้านเลขที่) เข้า setByAlias จริง ๆ
+      setByAlias(['Unit', 'unit', 'บ้านเลขที่', 'housenumber', 'houseNumber'], unit);
+
+      // บันทึกโครงการ
+      setByAlias(['ProjectName', 'Project', 'project', 'โครงการ'], project);
+
+      setByName('IP', hashedIp);
+      setByName('admin_coordination', adminCoordination);
+      setByName('scheduling_speed', schedulingSpeed);
+      setByName('technician_manner', technicianManner);
+      setByName('cleanliness', cleanliness);
+      setByName('repair_satisfaction', repairSatisfaction);
+      setByName('comment', comment);
+
+      // Log แถวที่จะเขียน
+      try {
+        Logger.log('Appending row for workOrder ' + workOrderId + ': ' + JSON.stringify(row));
+      } catch (logErr) {
+        Logger.log('Appending row (unserializable)');
+      }
+      surveySheet.appendRow(row);
+
+      // 2) บันทึก WorkOrderLog
+      logSheet.appendRow([
+        workOrderId,
+        "Completed",
+        responseId,
+        timestamp
+      ]);
+
+      // 3) เก็บ serial ไปเพิ่มใน MigratetoSH.SerialNumber
+      newSerials.push(workOrderId);
+    });
+
+    // 4) เพิ่มเลขที่ใบงานลงในชีท MigratetoSH
+    var insertedCount = appendSerialsToMigratetoSH_(spreadsheet, newSerials);
+
+    // บันทึกล็อก
+    if (userIp) {
+      Logger.log("Form submitted from IP (hashed): " + hashedIp + " for work orders: " + workOrders.join(", ") + 
+                 ", Unit: " + unit + ", Project: " + project);
+    }
+    
+    // --- ส่งสถานะกลับไป ---
+    return ContentService
+      .createTextOutput(JSON.stringify({ "result": "success", "addedToMigratetoSH": insertedCount }))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    Logger.log("doPost Error: " + error.toString());
+    return ContentService
+      .createTextOutput(JSON.stringify({ "result": "error", "error": error.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
