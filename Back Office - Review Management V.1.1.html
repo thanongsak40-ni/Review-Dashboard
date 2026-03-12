@@ -1,0 +1,2354 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Back Office - Review Management V.1.1</title>
+    <link rel="icon" type="image/png" href="https://i.ibb.co/qvZ5MDv/LOGO-SENA.png">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sarabun': ['Sarabun', 'sans-serif'],
+                    },
+                    animation: {
+                        'slide-in': 'slideIn 0.3s ease-out',
+                        'fade-in': 'fadeIn 0.3s ease',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'count-up': 'countUp 0.6s ease-out',
+                    },
+                    keyframes: {
+                        slideIn: {
+                            from: { opacity: '0', transform: 'translateY(20px)' },
+                            to: { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        fadeIn: {
+                            from: { opacity: '0' },
+                            to: { opacity: '1' },
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Choices.js for searchable dropdown -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
+    
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .sidebar { transition: all 0.3s ease; }
+        .content-area { transition: all 0.3s ease; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: slideIn 0.3s ease-out; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-content { animation: slideIn 0.3s ease-out; }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+        .badge-pending { background-color: #FEF3C7; color: #92400E; }
+        .badge-completed { background-color: #D1FAE5; color: #065F46; }
+        
+        .star-rating { color: #FCD34D; }
+        .note-item {
+            border-left: 3px solid #3B82F6;
+            transition: all 0.2s ease;
+        }
+        .note-item:hover {
+            border-left-color: #1D4ED8;
+            background-color: #F9FAFB;
+        }
+        .image-preview { position: relative; display: inline-block; }
+        .image-preview img { max-width: 200px; max-height: 200px; border-radius: 0.5rem; }
+        .image-preview .remove-image {
+            position: absolute; top: -8px; right: -8px;
+            background: #EF4444; color: white; border-radius: 50%;
+            width: 24px; height: 24px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; font-size: 12px;
+        }
+
+        /* Interactive Dashboard Cards */
+        .interactive-card {
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .interactive-card::after {
+            content: '';
+            position: absolute;
+            top: 0.5rem; right: 0.5rem;
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            content: '\f35d';
+            font-size: 0.75rem;
+            color: rgba(156, 163, 175, 0.5);
+            transition: all 0.3s ease;
+        }
+        .interactive-card:hover::after {
+            color: rgba(59, 130, 246, 0.8);
+            transform: scale(1.2);
+        }
+        .interactive-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+        }
+        .interactive-card:active {
+            transform: translateY(-2px);
+        }
+        
+        /* Tooltip for interactive elements */
+        .card-tooltip {
+            position: absolute;
+            bottom: -2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1F2937;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        .interactive-card:hover .card-tooltip {
+            opacity: 1;
+            bottom: -2.5rem;
+        }
+
+        /* Drill-down modal specific */
+        .drill-down-item {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .drill-down-item:hover {
+            background-color: #F9FAFB;
+            border-left-color: #3B82F6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sarabun">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar w-64 bg-gradient-to-b from-blue-600 to-blue-800 text-white flex flex-col">
+            <div class="p-6 border-b border-blue-500">
+                <h1 class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fas fa-cog"></i>
+                    <span>Back Office</span>
+                </h1>
+                <p class="text-blue-200 text-sm mt-1">Review Management</p>
+            </div>
+            <nav class="flex-1 p-4">
+                <ul class="space-y-2">
+                    <li>
+                        <a href="#" data-page="dashboard" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" data-page="review-list" class="nav-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors active">
+                            <i class="fas fa-list-ul"></i>
+                            <span>Review List</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="p-4 border-t border-blue-500">
+                <div class="text-sm text-blue-200">
+                    <p>Version 1.1.0</p>
+                    <p class="mt-1">© 2025 SENA Development</p>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="content-area flex-1 overflow-y-auto">
+            <!-- ======================== DASHBOARD PAGE ======================== -->
+            <div id="dashboard-page" class="page-content hidden">
+                <div class="p-8">
+                    <div class="mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">Dashboard</h2>
+                        <p class="text-gray-600 mt-1" id="dashboard-subtitle">ภาพรวมข้อมูลรีวิว</p>
+                    </div>
+
+                    <!-- Filters Section -->
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">
+                        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                            <div class="md:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-calendar-alt text-blue-500 mr-1"></i>เลือกช่วงเวลา
+                                </label>
+                                <select id="dashboard-period" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all">
+                                    <option value="this-month">เดือนนี้</option>
+                                    <option value="this-year">ปีนี้</option>
+                                    <option value="by-month">รายเดือน</option>
+                                    <option value="by-year">รายปี</option>
+                                </select>
+                            </div>
+                            <div id="month-selector" class="md:col-span-2 hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">เดือน</label>
+                                <select id="dashboard-month" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="1">มกราคม</option>
+                                    <option value="2">กุมภาพันธ์</option>
+                                    <option value="3">มีนาคม</option>
+                                    <option value="4">เมษายน</option>
+                                    <option value="5">พฤษภาคม</option>
+                                    <option value="6">มิถุนายน</option>
+                                    <option value="7">กรกฎาคม</option>
+                                    <option value="8">สิงหาคม</option>
+                                    <option value="9">กันยายน</option>
+                                    <option value="10">ตุลาคม</option>
+                                    <option value="11">พฤศจิกายน</option>
+                                    <option value="12">ธันวาคม</option>
+                                </select>
+                            </div>
+                            <div id="year-selector" class="md:col-span-2 hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">ปี</label>
+                                <select id="dashboard-year" class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></select>
+                            </div>
+                            <div class="md:col-span-3">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    <i class="fas fa-building text-blue-500 mr-1"></i>เลือกโครงการ
+                                </label>
+                                <select id="dashboard-project" multiple class="w-full">
+                                    <option value="">ทั้งหมด</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2 flex gap-2">
+                                <button id="dashboard-clear-filter" class="flex-1 px-4 py-2.5 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors" title="ล้างตัวกรอง">
+                                    <i class="fas fa-eraser"></i>
+                                </button>
+                                <button id="dashboard-apply-filter" class="flex-1 px-4 py-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors font-semibold">
+                                    <i class="fas fa-search mr-1"></i>แสดงผล
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards (Interactive) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="interactive-card bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500 hover:border-blue-600" onclick="showDrillDown('total-jobs')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-sm text-gray-600 font-medium">จำนวนงาน (รวม)</div>
+                                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-briefcase text-blue-500"></i>
+                                </div>
+                            </div>
+                            <div id="kpi-total-jobs" class="text-4xl font-bold text-blue-600">0</div>
+                            <div class="text-xs text-gray-400 mt-1"><i class="fas fa-hand-pointer mr-1"></i>คลิกเพื่อดูรายละเอียด</div>
+                        </div>
+                        <div class="interactive-card bg-white rounded-xl shadow-md p-6 border-l-4 border-purple-500 hover:border-purple-600" onclick="showDrillDown('total-units')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-sm text-gray-600 font-medium">จำนวน Unit (รวม)</div>
+                                <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-home text-purple-500"></i>
+                                </div>
+                            </div>
+                            <div id="kpi-total-units" class="text-4xl font-bold text-purple-600">0</div>
+                            <div class="text-xs text-gray-400 mt-1"><i class="fas fa-hand-pointer mr-1"></i>คลิกเพื่อดูรายละเอียด</div>
+                        </div>
+                        <div class="interactive-card bg-white rounded-xl shadow-md p-6 border-l-4 border-green-500 hover:border-green-600" onclick="showDrillDown('avg-score')">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="text-sm text-gray-600 font-medium">คะแนนเฉลี่ย</div>
+                                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-star text-green-500"></i>
+                                </div>
+                            </div>
+                            <div class="flex items-baseline gap-2">
+                                <span id="kpi-avg-score" class="text-4xl font-bold text-green-600">0.0</span>
+                                <span class="text-xl text-gray-400">/ 5.0</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1"><i class="fas fa-hand-pointer mr-1"></i>คลิกเพื่อดูคะแนนรายข้อ</div>
+                        </div>
+                    </div>
+
+                    <!-- Primary Status Cards (Interactive) -->
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-chart-pie text-blue-500 mr-2"></i>สถานะหลักงานรีวิว (Job Count & Rate)
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="interactive-card bg-white rounded-xl shadow-md p-6 border-t-4 border-green-500 hover:border-green-600" onclick="showDrillDown('reviewed')">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="text-gray-700 font-semibold">จำนวนรีวิว (Review)</div>
+                                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-check text-green-500 text-sm"></i>
+                                    </div>
+                                </div>
+                                <div class="flex items-end justify-between mb-4">
+                                    <div>
+                                        <div id="status-reviewed-jobs" class="text-4xl font-bold text-green-600">0</div>
+                                        <div class="text-sm text-gray-500">(จาก <span id="status-reviewed-total">0</span> งานรวม)</div>
+                                    </div>
+                                    <div id="status-reviewed-rate" class="text-3xl font-bold text-green-500">0%</div>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    <i class="fas fa-home text-green-400 mr-1"></i>
+                                    <span id="status-reviewed-units" class="font-semibold text-green-600">0</span> Unit
+                                </div>
+                                <div class="text-xs text-gray-400 mt-2"><i class="fas fa-hand-pointer mr-1"></i>คลิกเพื่อดูรายการที่รีวิวแล้ว</div>
+                            </div>
+                            <div class="interactive-card bg-white rounded-xl shadow-md p-6 border-t-4 border-orange-500 hover:border-orange-600" onclick="showDrillDown('remaining')">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="text-gray-700 font-semibold">คงเหลือ (Remaining)</div>
+                                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-clock text-orange-500 text-sm"></i>
+                                    </div>
+                                </div>
+                                <div class="flex items-end justify-between mb-4">
+                                    <div>
+                                        <div id="status-remaining-jobs" class="text-4xl font-bold text-orange-600">0</div>
+                                        <div class="text-sm text-gray-500">(จาก <span id="status-remaining-total">0</span> งานรวม)</div>
+                                    </div>
+                                    <div id="status-remaining-rate" class="text-3xl font-bold text-orange-500">0%</div>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    <i class="fas fa-home text-orange-400 mr-1"></i>
+                                    <span id="status-remaining-units" class="font-semibold text-orange-600">0</span> Unit
+                                </div>
+                                <div class="text-xs text-gray-400 mt-2"><i class="fas fa-hand-pointer mr-1"></i>คลิกเพื่อดูรายการคงเหลือ</div>
+                            </div>
+                            <div class="interactive-card bg-white rounded-xl shadow-md p-6 border-t-4 border-red-500 hover:border-red-600" onclick="showDrillDown('unable')">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div class="text-gray-700 font-semibold">ไม่สามารถติดต่อได้ (Unable)</div>
+                                    <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-phone-slash text-red-500 text-sm"></i>
+                                    </div>
+                                </div>
+                                <div class="flex items-end justify-between mb-4">
+                                    <div>
+                                        <div id="status-unable-jobs" class="text-4xl font-bold text-red-600">0</div>
+                                        <div class="text-sm text-gray-500">(จาก <span id="status-unable-total">0</span> งานรวม)</div>
+                                    </div>
+                                    <div id="status-unable-rate" class="text-3xl font-bold text-red-500">0%</div>
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    <i class="fas fa-home text-red-400 mr-1"></i>
+                                    <span id="status-unable-units" class="font-semibold text-red-600">0</span> Unit
+                                </div>
+                                <div class="text-xs text-gray-400 mt-2"><i class="fas fa-hand-pointer mr-1"></i>คลิกเพื่อดูรายการที่ติดต่อไม่ได้</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Stacked Bar Chart -->
+                    <div class="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-chart-bar text-blue-500 mr-2"></i>อัตราส่วนสถานะงานรีวิว (Job Rate & Unit Rate)
+                        </h3>
+                        <div class="space-y-6">
+                            <div>
+                                <div class="text-sm font-medium text-gray-700 mb-2">สถานะงาน (Job Rate)</div>
+                                <div class="flex h-12 rounded-xl overflow-hidden shadow-md">
+                                    <div id="job-rate-reviewed" class="bg-green-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 cursor-pointer hover:brightness-110" style="width: 0%" onclick="showDrillDown('reviewed')" title="คลิกเพื่อดูรายละเอียด">
+                                        <span class="rate-text"></span>
+                                    </div>
+                                    <div id="job-rate-remaining" class="bg-orange-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 cursor-pointer hover:brightness-110" style="width: 0%" onclick="showDrillDown('remaining')" title="คลิกเพื่อดูรายละเอียด">
+                                        <span class="rate-text"></span>
+                                    </div>
+                                    <div id="job-rate-unable" class="bg-red-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 cursor-pointer hover:brightness-110" style="width: 0%" onclick="showDrillDown('unable')" title="คลิกเพื่อดูรายละเอียด">
+                                        <span class="rate-text"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-sm font-medium text-gray-700 mb-2">สถานะ Unit (Unit Rate)</div>
+                                <div class="flex h-12 rounded-xl overflow-hidden shadow-md">
+                                    <div id="unit-rate-reviewed" class="bg-green-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 cursor-pointer hover:brightness-110" style="width: 0%">
+                                        <span class="rate-text"></span>
+                                    </div>
+                                    <div id="unit-rate-remaining" class="bg-orange-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 cursor-pointer hover:brightness-110" style="width: 0%">
+                                        <span class="rate-text"></span>
+                                    </div>
+                                    <div id="unit-rate-unable" class="bg-red-500 flex items-center justify-center text-white text-sm font-semibold transition-all duration-500 cursor-pointer hover:brightness-110" style="width: 0%">
+                                        <span class="rate-text"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-6 text-sm">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-4 h-4 bg-green-500 rounded shadow-sm"></div>
+                                    <span class="text-gray-700 font-medium">รีวิวแล้ว (Reviewed)</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-4 h-4 bg-orange-500 rounded shadow-sm"></div>
+                                    <span class="text-gray-700 font-medium">คงเหลือ (Remaining)</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-4 h-4 bg-red-500 rounded shadow-sm"></div>
+                                    <span class="text-gray-700 font-medium">ไม่สามารถติดต่อได้ (Unable)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Job & Unit Share -->
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">
+                            <i class="fas fa-users text-blue-500 mr-2"></i>การแบ่งส่วนงานรีวิวตามช่องทางติดต่อ (Job & Unit Share)
+                        </h3>
+                        <div class="mb-6">
+                            <h4 class="text-lg font-semibold text-gray-700 mb-4">ส่วนแบ่งงานรีวิว (Job Share)</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="interactive-card bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500" onclick="showDrillDown('job-share-cc')">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-gray-700 font-semibold">จาก Call Center</div>
+                                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <i class="fas fa-headset text-blue-500 text-sm"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-end justify-between mb-3">
+                                        <div>
+                                            <div id="job-share-cc-count" class="text-3xl font-bold text-gray-800">0</div>
+                                            <div class="text-sm text-gray-500">จำนวนงานรีวิว</div>
+                                        </div>
+                                        <div id="job-share-cc-rate" class="text-2xl font-bold text-blue-600">0%</div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 font-medium mb-2">สัดส่วนต่อรีวิวทั้งหมด</div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="job-share-cc-bar" class="bg-blue-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="interactive-card bg-white rounded-xl shadow-md p-5 border-l-4 border-indigo-500" onclick="showDrillDown('job-share-fm')">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-gray-700 font-semibold">จาก FM</div>
+                                        <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                                            <i class="fas fa-hard-hat text-indigo-500 text-sm"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-end justify-between mb-3">
+                                        <div>
+                                            <div id="job-share-fm-count" class="text-3xl font-bold text-gray-800">0</div>
+                                            <div class="text-sm text-gray-500">จำนวนงานรีวิว</div>
+                                        </div>
+                                        <div id="job-share-fm-rate" class="text-2xl font-bold text-indigo-600">0%</div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 font-medium mb-2">สัดส่วนต่อรีวิวทั้งหมด</div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="job-share-fm-bar" class="bg-indigo-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-semibold text-gray-700 mb-4">ส่วนแบ่ง Unit รีวิว (Unit Share)</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="interactive-card bg-white rounded-xl shadow-md p-5 border-l-4 border-blue-500" onclick="showDrillDown('unit-share-cc')">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-gray-700 font-semibold">จาก Call Center</div>
+                                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                            <i class="fas fa-headset text-blue-500 text-sm"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-end justify-between mb-3">
+                                        <div>
+                                            <div id="unit-share-cc-count" class="text-3xl font-bold text-gray-800">0</div>
+                                            <div class="text-sm text-gray-500">จำนวน Unit รีวิว</div>
+                                        </div>
+                                        <div id="unit-share-cc-rate" class="text-2xl font-bold text-blue-600">0%</div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 font-medium mb-2">สัดส่วนต่อรีวิวทั้งหมด</div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="unit-share-cc-bar" class="bg-blue-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="interactive-card bg-white rounded-xl shadow-md p-5 border-l-4 border-indigo-500" onclick="showDrillDown('unit-share-fm')">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="text-gray-700 font-semibold">จาก FM</div>
+                                        <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                                            <i class="fas fa-hard-hat text-indigo-500 text-sm"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-end justify-between mb-3">
+                                        <div>
+                                            <div id="unit-share-fm-count" class="text-3xl font-bold text-gray-800">0</div>
+                                            <div class="text-sm text-gray-500">จำนวน Unit รีวิว</div>
+                                        </div>
+                                        <div id="unit-share-fm-rate" class="text-2xl font-bold text-indigo-600">0%</div>
+                                    </div>
+                                    <div class="text-xs text-gray-500 font-medium mb-2">สัดส่วนต่อรีวิวทั้งหมด</div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="unit-share-fm-bar" class="bg-indigo-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detail Metrics -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Score Breakdown (Interactive) -->
+                        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">
+                                <i class="fas fa-star-half-alt text-amber-500 mr-2"></i>คะแนนเฉลี่ยรายข้อ (จากคะแนนเต็ม 5.0)
+                            </h3>
+                            <div class="space-y-4">
+                                <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onclick="showDrillDown('score-1')">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-700">1. การประสานงานของแอดมิน</span>
+                                        <span id="score-1" class="font-bold text-amber-600">0.0</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="score-bar-1" class="bg-amber-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onclick="showDrillDown('score-2')">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-700">2. ความรวดเร็วในการนัดหมาย และแจ้งเตือนก่อนเข้ารับบริการ</span>
+                                        <span id="score-2" class="font-bold text-amber-600">0.0</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="score-bar-2" class="bg-amber-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onclick="showDrillDown('score-3')">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-700">3. การแต่งกาย และความสุภาพของผู้ให้บริการ</span>
+                                        <span id="score-3" class="font-bold text-amber-600">0.0</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="score-bar-3" class="bg-amber-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onclick="showDrillDown('score-4')">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-700">4. ความสะอาดเรียบร้อยของพื้นที่ หลังเข้ารับบริการ</span>
+                                        <span id="score-4" class="font-bold text-amber-600">0.0</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="score-bar-4" class="bg-amber-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onclick="showDrillDown('score-5')">
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span class="text-gray-700">5. ความพึงพอใจต่องานซ่อม และระยะเวลาในการซ่อมงาน</span>
+                                        <span id="score-5" class="font-bold text-amber-600">0.0</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-3 shadow-inner">
+                                        <div id="score-bar-5" class="bg-amber-500 h-3 rounded-full transition-all duration-500 shadow-sm" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Feedback -->
+                        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-bold text-gray-800">
+                                    <i class="fas fa-comments text-blue-500 mr-2"></i>ความคิดเห็น
+                                </h3>
+                                <select id="feedback-sort" class="px-3 py-1 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="newest">ใหม่ไปเก่า</option>
+                                    <option value="oldest">เก่าไปใหม่</option>
+                                </select>
+                            </div>
+                            <div id="feedback-list" class="space-y-3 max-h-96 overflow-y-auto">
+                                <div class="text-center py-8 text-gray-500">
+                                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                    <p>กำลังโหลดข้อมูล...</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                                <button id="feedback-prev-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-chevron-left mr-2"></i>หน้าก่อนหน้า
+                                </button>
+                                <div class="flex items-center space-x-3">
+                                    <div class="text-sm text-gray-600">
+                                        หน้า <span id="feedback-current-page">1</span> / <span id="feedback-total-pages">1</span>
+                                    </div>
+                                    <div class="flex items-center space-x-2">
+                                        <label class="text-sm text-gray-600">ไป:</label>
+                                        <input type="number" id="feedback-page-input" min="1" class="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="1">
+                                        <button id="feedback-go-page" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Go</button>
+                                    </div>
+                                </div>
+                                <button id="feedback-next-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    หน้าถัดไป<i class="fas fa-chevron-right ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ======================== REVIEW LIST PAGE ======================== -->
+            <div id="review-list-page" class="page-content active">
+                <div class="p-8">
+                    <div class="mb-6">
+                        <h2 class="text-3xl font-bold text-gray-800">Review List</h2>
+                        <p class="text-gray-600 mt-1">รายการรีวิวทั้งหมด</p>
+                    </div>
+                    <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+                        <div class="border-b border-gray-200">
+                            <div class="flex">
+                                <button class="status-tab flex-1 px-6 py-4 text-center font-semibold transition-colors border-b-2 border-blue-600 bg-blue-50 text-blue-600" data-status="pending">
+                                    <i class="fas fa-clock mr-2"></i>
+                                    รอตรวจสอบ
+                                    <span class="ml-2 badge badge-pending" id="pending-count">-</span>
+                                </button>
+                                <button class="status-tab flex-1 px-6 py-4 text-center font-semibold transition-colors border-b-2 border-transparent hover:bg-gray-50 text-gray-600" data-status="completed">
+                                    <i class="fas fa-check-circle mr-2"></i>
+                                    บันทึกสำเร็จ
+                                    <span class="ml-2 badge badge-completed" id="completed-count">-</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Filters (FIXED: removed opacity-0) -->
+                        <div class="p-6 bg-gray-50 border-b border-gray-200">
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-building text-blue-500 mr-1"></i>โครงการ
+                                    </label>
+                                    <select id="filter-project" class="w-full" multiple>
+                                        <option value="">ทั้งหมด</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-home text-blue-500 mr-1"></i>บ้านเลขที่
+                                    </label>
+                                    <input type="text" id="filter-house" placeholder="ค้นหาบ้านเลขที่..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-file-alt text-blue-500 mr-1"></i>เลขที่ใบงาน
+                                    </label>
+                                    <input type="text" id="filter-job" placeholder="ค้นหาเลขที่ใบงาน..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        <i class="fas fa-calendar text-blue-500 mr-1"></i>ช่วงเวลา
+                                    </label>
+                                    <select id="filter-date" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        <option value="all">ทั้งหมด</option>
+                                        <option value="today">วันนี้</option>
+                                        <option value="week">7 วันที่แล้ว</option>
+                                        <option value="month">30 วันที่แล้ว</option>
+                                        <option value="custom">กำหนดเอง</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="custom-date-range" class="mt-4 hidden">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">วันที่เริ่มต้น</label>
+                                        <input type="date" id="date-start" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">วันที่สิ้นสุด</label>
+                                        <input type="date" id="date-end" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex justify-end gap-3">
+                                <button id="search-filters" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                    <i class="fas fa-search"></i>
+                                    ค้นหา
+                                </button>
+                                <button id="clear-filters" class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors flex items-center gap-2">
+                                    <i class="fas fa-eraser"></i>
+                                    ล้างค่าตัวกรอง
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Pending Reviews Tab -->
+                        <div id="pending-tab" class="tab-content active p-6">
+                            <div class="mb-4 flex justify-end">
+                                <select id="pending-sort" class="px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="newest">ใหม่ไปเก่า</option>
+                                    <option value="oldest">เก่าไปใหม่</option>
+                                </select>
+                            </div>
+                            <div id="pending-loading" class="text-center py-12">
+                                <i class="fas fa-spinner fa-spin text-6xl text-blue-500 mb-4"></i>
+                                <p class="text-gray-600 text-lg">กำลังโหลดข้อมูล...</p>
+                            </div>
+                            <div id="pending-list" class="space-y-4 hidden"></div>
+                            <div id="pending-empty" class="text-center py-12 hidden" style="display: none;">
+                                <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                                <p class="text-gray-500 text-lg">ไม่พบรายการรีวิว</p>
+                            </div>
+                            <div id="pending-pagination" class="mt-6 flex items-center justify-between hidden">
+                                <button onclick="changePage('pending', -1)" id="pending-prev" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-chevron-left mr-2"></i>ก่อนหน้า
+                                </button>
+                                <div class="flex items-center space-x-3">
+                                    <span id="pending-page-info" class="text-gray-700 font-medium"></span>
+                                    <div class="flex items-center space-x-2">
+                                        <label class="text-sm text-gray-600">ไป:</label>
+                                        <input type="number" id="pending-page-input" min="1" class="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="1">
+                                        <button onclick="goToPage('pending')" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Go</button>
+                                    </div>
+                                </div>
+                                <button onclick="changePage('pending', 1)" id="pending-next" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    ถัดไป<i class="fas fa-chevron-right ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Completed Reviews Tab -->
+                        <div id="completed-tab" class="tab-content p-6">
+                            <div class="mb-4 flex justify-end">
+                                <select id="completed-sort" class="px-3 py-2 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="newest">ใหม่ไปเก่า</option>
+                                    <option value="oldest">เก่าไปใหม่</option>
+                                </select>
+                            </div>
+                            <div id="completed-loading" class="text-center py-12">
+                                <i class="fas fa-spinner fa-spin text-6xl text-green-500 mb-4"></i>
+                                <p class="text-gray-600 text-lg">กำลังโหลดข้อมูล...</p>
+                            </div>
+                            <div id="completed-list" class="space-y-4 hidden"></div>
+                            <div id="completed-empty" class="text-center py-12 hidden" style="display: none;">
+                                <i class="fas fa-inbox text-6xl text-gray-300 mb-4"></i>
+                                <p class="text-gray-500 text-lg">ไม่พบรายการรีวิว</p>
+                            </div>
+                            <div id="completed-pagination" class="mt-6 flex items-center justify-between hidden">
+                                <button onclick="changePage('completed', -1)" id="completed-prev" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <i class="fas fa-chevron-left mr-2"></i>ก่อนหน้า
+                                </button>
+                                <div class="flex items-center space-x-3">
+                                    <span id="completed-page-info" class="text-gray-700 font-medium"></span>
+                                    <div class="flex items-center space-x-2">
+                                        <label class="text-sm text-gray-600">ไป:</label>
+                                        <input type="number" id="completed-page-input" min="1" class="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="1">
+                                        <button onclick="goToPage('completed')" class="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">Go</button>
+                                    </div>
+                                </div>
+                                <button onclick="changePage('completed', 1)" id="completed-next" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    ถัดไป<i class="fas fa-chevron-right ml-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ======================== DRILL-DOWN MODAL (NEW) ======================== -->
+    <div id="drill-down-modal" class="modal">
+        <div class="modal-content bg-white rounded-xl shadow-xl max-w-3xl w-full mx-4 max-h-[85vh] overflow-hidden">
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+                <div>
+                    <h3 id="drill-down-title" class="text-xl font-bold text-gray-800">รายละเอียด</h3>
+                    <p id="drill-down-subtitle" class="text-sm text-gray-500"></p>
+                </div>
+                <button onclick="closeDrillDown()" class="text-gray-500 hover:text-gray-700 text-2xl w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div id="drill-down-content" class="p-6 overflow-y-auto" style="max-height: calc(85vh - 80px);">
+                <!-- Dynamic content will be injected here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Review Detail Modal -->
+    <div id="review-detail-modal" class="modal">
+        <div class="modal-content bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+                <h3 class="text-2xl font-bold text-gray-800">รายละเอียดรีวิว</h3>
+                <button onclick="closeDetailModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">สถานะ</label>
+                        <div id="detail-status"></div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">เลขที่ใบงาน</label>
+                        <div id="job-number-display"><p id="detail-job-number" class="text-gray-900 font-semibold"></p></div>
+                        <div id="job-number-edit" class="hidden">
+                            <input type="text" id="edit-job-number" maxlength="16" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">โครงการ</label>
+                        <div id="project-display"><p id="detail-project" class="text-gray-900"></p></div>
+                        <div id="project-edit" class="hidden">
+                            <input type="text" id="edit-project" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="กรอกชื่อโครงการ">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">บ้านเลขที่</label>
+                        <div id="house-number-display"><p id="detail-house-number" class="text-gray-900"></p></div>
+                        <div id="house-number-edit" class="hidden">
+                            <input type="text" id="edit-house-number" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">วันที่รีวิว</label>
+                        <p id="detail-review-date" class="text-gray-900"></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">คะแนนรีวิวเฉลี่ย</label>
+                        <div id="detail-avg-rating" class="flex items-center gap-2"></div>
+                    </div>
+                </div>
+                <div id="edit-actions-section" class="hidden mb-6">
+                    <button onclick="saveEdits()" id="save-edit-btn" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                        <i class="fas fa-save mr-2" id="save-icon"></i>
+                        <span id="save-text">บันทึกการแก้ไข</span>
+                    </button>
+                </div>
+                <div class="mb-6">
+                    <h4 class="text-lg font-bold text-gray-800 mb-4">คะแนนรายข้อ</h4>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">1. การประสานงานของแอดมิน</span>
+                            <div id="detail-rating-1" class="star-rating font-semibold"></div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">2. ความรวดเร็วในการนัดหมาย และแจ้งเตือนก่อนเข้ารับบริการ</span>
+                            <div id="detail-rating-2" class="star-rating font-semibold"></div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">3. การแต่งกาย และความสุภาพของผู้ให้บริการ</span>
+                            <div id="detail-rating-3" class="star-rating font-semibold"></div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">4. ความสะอาดเรียบร้อยของพื้นที่ หลังเข้ารับบริการ</span>
+                            <div id="detail-rating-4" class="star-rating font-semibold"></div>
+                        </div>
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <span class="text-gray-700">5. ความพึงพอใจต่องานซ่อม และระยะเวลาในการซ่อมงาน</span>
+                            <div id="detail-rating-5" class="star-rating font-semibold"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <h4 class="text-lg font-bold text-gray-800 mb-2">ความคิดเห็น</h4>
+                    <div id="detail-comment" class="p-4 bg-gray-50 rounded-lg text-gray-700 whitespace-pre-wrap"></div>
+                </div>
+                <div id="saved-images-section" class="mb-6 hidden">
+                    <div class="border-t border-gray-200 pt-6">
+                        <h4 class="text-lg font-bold text-gray-800 mb-4">รูปภาพที่บันทึก</h4>
+                        <div id="saved-images-container" class="flex flex-wrap gap-4"></div>
+                    </div>
+                </div>
+                <div id="status-change-section" class="mb-6 hidden">
+                    <div class="border-t border-gray-200 pt-6">
+                        <h4 class="text-lg font-bold text-gray-800 mb-4">เปลี่ยนสถานะเป็นบันทึกสำเร็จ</h4>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">อัปโหลดรูปภาพ <span class="text-red-500">*</span></label>
+                                <input type="file" id="upload-image" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                                <p class="text-xs text-gray-500 mt-1">รองรับไฟล์ภาพ ขนาดไม่เกิน 32 MB</p>
+                                <div id="image-preview-container" class="mt-4 flex flex-wrap gap-4"></div>
+                            </div>
+                            <button onclick="confirmStatusChange()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
+                                <i class="fas fa-check-circle mr-2"></i>ยืนยันการเปลี่ยนสถานะ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="border-t border-gray-200 pt-6">
+                    <h4 class="text-lg font-bold text-gray-800 mb-4">บันทึก</h4>
+                    <div class="mb-4">
+                        <textarea id="note-input" rows="3" placeholder="เพิ่มบันทึก..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+                        <button onclick="addNote()" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors">
+                            <i class="fas fa-plus mr-2"></i>เพิ่มบันทึก
+                        </button>
+                    </div>
+                    <div id="notes-list" class="space-y-3"></div>
+                    <div id="notes-empty" class="text-center py-8 text-gray-500">
+                        <i class="fas fa-sticky-note text-4xl mb-2"></i>
+                        <p>ยังไม่มีบันทึก</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Success Modal -->
+    <div id="success-modal" class="modal">
+        <div class="modal-content bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-8 text-center">
+            <div class="mb-4"><i class="fas fa-check-circle text-6xl text-green-500"></i></div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-2">สำเร็จ!</h3>
+            <p class="text-gray-600 mb-6">เปลี่ยนสถานะเป็นบันทึกสำเร็จแล้ว</p>
+            <button onclick="closeSuccessModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">ตกลง</button>
+        </div>
+    </div>
+    
+    <!-- Edit Success Modal -->
+    <div id="edit-success-modal" class="modal">
+        <div class="modal-content bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-8 text-center">
+            <div class="mb-4"><i class="fas fa-check-circle text-6xl text-green-500"></i></div>
+            <h3 class="text-2xl font-bold text-gray-800 mb-2">แก้ไขสำเร็จ!</h3>
+            <p class="text-gray-600 mb-6">บันทึกการแก้ไขข้อมูลเรียบร้อยแล้ว</p>
+            <button onclick="closeEditSuccessModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg transition-colors">ตกลง</button>
+        </div>
+    </div>
+
+    <!-- Dashboard Loading Modal -->
+    <div id="dashboard-loading-modal" class="modal">
+        <div class="bg-white rounded-xl shadow-xl p-8 max-w-md w-full mx-4">
+            <div class="text-center">
+                <div class="mb-6"><i class="fas fa-chart-line text-6xl text-blue-500 animate-pulse"></i></div>
+                <h3 class="text-2xl font-bold text-gray-800 mb-3">กำลังโหลดข้อมูล Dashboard</h3>
+                <p class="text-gray-600 mb-6">กรุณารอสักครู่...</p>
+                <div class="flex justify-center">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // =====================================================================
+    // Global Variables & Configuration
+    // =====================================================================
+    let reviews = [];
+    let currentReviewId = null;
+    let uploadedImageUrl = '';
+    let projectChoices = null;
+    let projectList = [];
+    let pendingProjects = [];
+    let completedProjects = [];
+    let completedReviewsLoaded = false;
+    
+    let currentPagePending = 1;
+    let currentPageCompleted = 1;
+    const itemsPerPage = 10;
+    let isLoadingData = true;
+    
+    // Sort orders
+    let pendingSortOrder = 'newest';
+    let completedSortOrder = 'newest';
+    
+    // Dashboard data cache for drill-down
+    let cachedDashboardData = null;
+    
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzM4ZezRlTP82EdMPgcaQE1Rf1ZWgyjFEShxPLKHFtIoax6XD-NyZfM9mqhe9x3w5-c/exec';
+    const DASHBOARD_API_URL = 'https://script.google.com/macros/s/AKfycbyS06vsMqH7W2zFWI-NDZegAgbPtKnub1YvtmUZcQYQCzajXWZzsmMa8K_nZC3uzGfk/exec';
+    
+    // =====================================================================
+    // Load Projects (FIXED: Better Choices.js with partial search)
+    // =====================================================================
+    async function loadProjects() {
+        try {
+            const pendingResponse = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'getProjectsByStatus', status: 'Skip' })
+            });
+            const completedResponse = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'getProjectsByStatus', status: 'Success' })
+            });
+            
+            const [pendingResult, completedResult] = await Promise.all([
+                pendingResponse.json(), completedResponse.json()
+            ]);
+            
+            if (pendingResult.success && pendingResult.data && pendingResult.data.projects) {
+                pendingProjects = [...new Set(pendingResult.data.projects)];
+            } else {
+                pendingProjects = [];
+            }
+            
+            if (completedResult.success && completedResult.data && completedResult.data.projects) {
+                completedProjects = [...new Set(completedResult.data.projects)];
+            } else {
+                completedProjects = [];
+            }
+            
+            projectList = pendingProjects;
+            
+            // FIXED: Initialize Choices.js with fuseOptions for better partial search
+            const projectSelect = document.getElementById('filter-project');
+            projectChoices = new Choices(projectSelect, {
+                searchEnabled: true,
+                searchPlaceholderValue: 'พิมพ์ชื่อโครงการบางส่วนเพื่อค้นหา...',
+                noResultsText: 'ไม่พบโครงการที่ค้นหา',
+                itemSelectText: 'คลิกเพื่อเลือก',
+                shouldSort: false,
+                removeItemButton: true,
+                fuseOptions: {
+                    includeScore: true,
+                    threshold: 0.4,
+                    distance: 1000,
+                    minMatchCharLength: 1,
+                    findAllMatches: true,
+                    ignoreLocation: true
+                },
+                searchResultLimit: 100,
+                searchFields: ['label']
+            });
+            
+            updateProjectFilter('pending');
+            
+            console.log('โหลดโครงการสำเร็จ:', 'Pending:', pendingProjects.length, 'Completed:', completedProjects.length);
+                
+        } catch (error) {
+            console.error('Error loading projects:', error);
+            projectList = [];
+            pendingProjects = [];
+            completedProjects = [];
+            
+            const projectSelect = document.getElementById('filter-project');
+            projectChoices = new Choices(projectSelect, {
+                searchEnabled: true,
+                searchPlaceholderValue: 'พิมพ์ชื่อโครงการบางส่วนเพื่อค้นหา...',
+                noResultsText: 'ไม่พบโครงการ',
+                itemSelectText: 'คลิกเพื่อเลือก',
+                shouldSort: false,
+                removeItemButton: true,
+                fuseOptions: {
+                    threshold: 0.4,
+                    distance: 1000,
+                    minMatchCharLength: 1,
+                    findAllMatches: true,
+                    ignoreLocation: true
+                }
+            });
+        }
+    }
+
+    function updateProjectFilter(status) {
+        if (!projectChoices) return;
+        const currentProjects = status === 'pending' ? pendingProjects : completedProjects;
+        projectList = currentProjects;
+        projectChoices.removeActiveItems();
+        projectChoices.clearStore();
+        const projectOptions = currentProjects.map(project => ({
+            value: project,
+            label: project
+        }));
+        projectChoices.setChoices(projectOptions, 'value', 'label', false);
+    }
+
+    // =====================================================================
+    // Navigation
+    // =====================================================================
+    let dashboardLoaded = false;
+    
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const page = e.currentTarget.dataset.page;
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active', 'bg-blue-700'));
+            e.currentTarget.classList.add('active', 'bg-blue-700');
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`${page}-page`).classList.remove('hidden');
+            
+            if (page === 'review-list') {
+                renderReviews();
+            } else if (page === 'dashboard') {
+                if (!dashboardLoaded) {
+                    dashboardLoaded = true;
+                    initDashboard();
+                    showDashboardLoadingModal(true);
+                    loadDashboardData(true);
+                }
+            }
+        });
+    });
+    
+    // =====================================================================
+    // Status Tabs
+    // =====================================================================
+    document.querySelectorAll('.status-tab').forEach(tab => {
+        tab.addEventListener('click', async (e) => {
+            const status = e.currentTarget.dataset.status;
+            document.querySelectorAll('.status-tab').forEach(t => {
+                t.classList.remove('border-blue-600', 'bg-blue-50', 'text-blue-600');
+                t.classList.add('border-transparent', 'text-gray-600');
+            });
+            e.currentTarget.classList.remove('border-transparent', 'text-gray-600');
+            e.currentTarget.classList.add('border-blue-600', 'bg-blue-50', 'text-blue-600');
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(`${status}-tab`).classList.add('active');
+            updateProjectFilter(status);
+            
+            if (status === 'completed') {
+                if (!completedReviewsLoaded) {
+                    await loadCompletedReviewsFromAPI();
+                } else {
+                    renderReviews();
+                }
+            } else {
+                renderReviews();
+            }
+        });
+    });
+    
+    // =====================================================================
+    // Filter Events
+    // =====================================================================
+    document.getElementById('filter-date').addEventListener('change', (e) => {
+        const customRange = document.getElementById('custom-date-range');
+        if (e.target.value === 'custom') {
+            customRange.classList.remove('hidden');
+        } else {
+            customRange.classList.add('hidden');
+        }
+    });
+    
+    document.getElementById('search-filters').addEventListener('click', () => {
+        currentPagePending = 1;
+        currentPageCompleted = 1;
+        renderReviews();
+    });
+    
+    ['filter-house', 'filter-job', 'date-start', 'date-end'].forEach(id => {
+        document.getElementById(id).addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                currentPagePending = 1;
+                currentPageCompleted = 1;
+                renderReviews();
+            }
+        });
+    });
+    
+    document.getElementById('clear-filters').addEventListener('click', () => {
+        document.getElementById('filter-house').value = '';
+        document.getElementById('filter-job').value = '';
+        document.getElementById('date-start').value = '';
+        document.getElementById('date-end').value = '';
+        document.getElementById('filter-date').value = 'all';
+        document.getElementById('custom-date-range').classList.add('hidden');
+        
+        if (projectChoices) {
+            projectChoices.removeActiveItems();
+            const projectOptions = projectList.map(project => ({
+                value: project,
+                label: project
+            }));
+            projectChoices.clearStore();
+            projectChoices.setChoices(projectOptions, 'value', 'label', false);
+        }
+        
+        currentPagePending = 1;
+        currentPageCompleted = 1;
+        renderReviews();
+    });
+    
+    // =====================================================================
+    // Filter Reviews (FIXED: Single function with null safety)
+    // =====================================================================
+    function filterReviews(status) {
+        let filtered = reviews.filter(review => {
+            if (review.status !== status) return false;
+
+            // FIXED: Project filter with null safety
+            const selectedProjects = projectChoices ? projectChoices.getValue(true) : [];
+            const validProjects = selectedProjects.filter(v => v && v.trim() !== '');
+            if (validProjects.length > 0 && !validProjects.includes(review.project || '')) {
+                return false;
+            }
+
+            // FIXED: House number filter with null safety
+            const houseFilter = document.getElementById('filter-house').value.trim().toLowerCase();
+            if (houseFilter && !(review.houseNumber || '').toLowerCase().includes(houseFilter)) {
+                return false;
+            }
+
+            // FIXED: Job number filter with null safety
+            const jobFilter = document.getElementById('filter-job').value.trim().toLowerCase();
+            if (jobFilter && !(review.jobNumber || '').toLowerCase().includes(jobFilter)) {
+                return false;
+            }
+
+            // Date filter
+            const dateFilter = document.getElementById('filter-date').value;
+            if (dateFilter !== 'all') {
+                const reviewDate = new Date(review.reviewDate);
+                const now = new Date();
+                switch (dateFilter) {
+                    case 'today':
+                        if (reviewDate.toDateString() !== now.toDateString()) return false;
+                        break;
+                    case 'week':
+                        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                        if (reviewDate < weekAgo) return false;
+                        break;
+                    case 'month':
+                        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                        if (reviewDate < monthAgo) return false;
+                        break;
+                    case 'custom':
+                        const startDate = document.getElementById('date-start').value;
+                        const endDate = document.getElementById('date-end').value;
+                        if (startDate && reviewDate < new Date(startDate)) return false;
+                        if (endDate && reviewDate > new Date(endDate + 'T23:59:59')) return false;
+                        break;
+                }
+            }
+            return true;
+        });
+
+        // Sort
+        const sortOrder = status === 'pending' ? pendingSortOrder : completedSortOrder;
+        filtered.sort((a, b) => {
+            const dateA = new Date(a.reviewDate);
+            const dateB = new Date(b.reviewDate);
+            return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+        });
+
+        return filtered;
+    }
+    
+    // =====================================================================
+    // Rendering & Pagination
+    // =====================================================================
+    function calculateAvgRating(ratings) {
+        const values = Object.values(ratings);
+        const sum = values.reduce((a, b) => a + b, 0);
+        return (sum / values.length).toFixed(1);
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('th-TH', {
+            year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+    
+    function renderStars(rating) {
+        const fullStars = Math.floor(rating);
+        const hasHalfStar = rating % 1 !== 0;
+        let html = '';
+        for (let i = 0; i < fullStars; i++) html += '<i class="fas fa-star"></i>';
+        if (hasHalfStar) html += '<i class="fas fa-star-half-alt"></i>';
+        for (let i = Math.ceil(rating); i < 5; i++) html += '<i class="far fa-star"></i>';
+        return html;
+    }
+    
+    function renderReviews() {
+        const pendingReviews = filterReviews('pending');
+        const completedReviews = filterReviews('completed');
+        document.getElementById('pending-count').textContent = pendingReviews.length;
+        document.getElementById('completed-count').textContent = completedReviews.length;
+        renderPaginatedList('pending', pendingReviews, currentPagePending);
+        renderPaginatedList('completed', completedReviews, currentPageCompleted);
+    }
+    
+    function renderPaginatedList(status, reviews, currentPage) {
+        const list = document.getElementById(`${status}-list`);
+        const empty = document.getElementById(`${status}-empty`);
+        const loading = document.getElementById(`${status}-loading`);
+        const pagination = document.getElementById(`${status}-pagination`);
+        const pageInfo = document.getElementById(`${status}-page-info`);
+        const prevBtn = document.getElementById(`${status}-prev`);
+        const nextBtn = document.getElementById(`${status}-next`);
+        
+        if (reviews.length === 0) {
+            loading.classList.add('hidden');
+            list.innerHTML = '';
+            list.classList.add('hidden');
+            empty.classList.remove('hidden');
+            empty.style.display = '';
+            pagination.classList.add('hidden');
+            return;
+        }
+        
+        loading.classList.add('hidden');
+        empty.classList.add('hidden');
+        list.classList.remove('hidden');
+        
+        const totalPages = Math.ceil(reviews.length / itemsPerPage);
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = Math.min(startIndex + itemsPerPage, reviews.length);
+        const paginatedReviews = reviews.slice(startIndex, endIndex);
+        
+        list.innerHTML = paginatedReviews.map(review => {
+            const avgRating = calculateAvgRating(review.ratings);
+            return `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4 items-center">
+                        <div>
+                            <p class="text-sm text-gray-600">เลขที่ใบงาน</p>
+                            <p class="font-semibold text-gray-900">${review.jobNumber || '-'}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">โครงการ</p>
+                            <p class="text-gray-900">${review.project || '-'}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">บ้านเลขที่</p>
+                            <p class="text-gray-900">${review.houseNumber || '-'}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">วันที่รีวิว</p>
+                            <p class="text-gray-900">${formatDate(review.reviewDate)}</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">คะแนนเฉลี่ย</p>
+                            <div class="flex items-center gap-2">
+                                <span class="star-rating">${renderStars(parseFloat(avgRating))}</span>
+                                <span class="font-semibold text-gray-900">${avgRating}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <button onclick="showReviewDetail('${review.id}')" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                                <i class="fas fa-${status === 'pending' ? 'edit' : 'eye'} mr-1"></i>
+                                ${status === 'pending' ? 'แก้ไข' : 'ดูรายละเอียด'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        if (totalPages > 1) {
+            pagination.classList.remove('hidden');
+            pageInfo.textContent = `หน้า ${currentPage} จาก ${totalPages} (${reviews.length} รายการ)`;
+            prevBtn.disabled = currentPage === 1;
+            nextBtn.disabled = currentPage === totalPages;
+        } else {
+            pagination.classList.add('hidden');
+        }
+    }
+    
+    function changePage(status, direction) {
+        if (status === 'pending') {
+            const total = Math.ceil(filterReviews('pending').length / itemsPerPage);
+            currentPagePending = Math.max(1, Math.min(currentPagePending + direction, total));
+        } else {
+            const total = Math.ceil(filterReviews('completed').length / itemsPerPage);
+            currentPageCompleted = Math.max(1, Math.min(currentPageCompleted + direction, total));
+        }
+        renderReviews();
+    }
+
+    function goToPage(status) {
+        const input = document.getElementById(`${status}-page-input`);
+        const pageNum = parseInt(input.value);
+        const total = Math.ceil(filterReviews(status).length / itemsPerPage);
+        
+        if (pageNum && pageNum >= 1 && pageNum <= total) {
+            if (status === 'pending') currentPagePending = pageNum;
+            else currentPageCompleted = pageNum;
+            renderReviews();
+        } else {
+            alert(`กรุณากรอกหมายเลขหน้าระหว่าง 1 ถึง ${total}`);
+        }
+    }
+    
+    // =====================================================================
+    // API Helper Functions
+    // =====================================================================
+    async function saveEditToBackend(rowIndex, jobNumber, project, houseNumber) {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'updateReview', rowIndex, jobNumber, project, houseNumber })
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Failed to save edit');
+        return result;
+    }
+    
+    async function updateStatusToBackend(rowIndex, status, imageUrl) {
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'updateReviewStatus', rowIndex, status, imageUrl })
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Failed to update status');
+        return result;
+    }
+    
+    // =====================================================================
+    // Load Reviews from API
+    // =====================================================================
+    async function loadCompletedReviewsFromAPI() {
+        try {
+            document.getElementById('completed-loading').classList.remove('hidden');
+            document.getElementById('completed-list').classList.add('hidden');
+            document.getElementById('completed-empty').classList.add('hidden');
+            
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'getCompletedReviews' })
+            });
+            const result = await response.json();
+            
+            if (result.success && result.data && result.data.reviews) {
+                const completedReviews = result.data.reviews.map(item => ({
+                    id: item.jobNumber,
+                    rowIndex: item.rowIndex,
+                    jobNumber: item.jobNumber,
+                    project: item.project || '',
+                    houseNumber: item.houseNumber || '',
+                    reviewDate: item.reviewDate,
+                    ratings: {
+                        adminCoordination: item.scores.adminCoordination || 0,
+                        schedulingSpeed: item.scores.schedulingSpeed || 0,
+                        technicianManner: item.scores.technicianManner || 0,
+                        cleanliness: item.scores.cleanliness || 0,
+                        repairSatisfaction: item.scores.repairSatisfaction || 0
+                    },
+                    comment: item.comment || '',
+                    status: 'completed',
+                    image: item.image || '',
+                    completedAt: item.completedAt || '',
+                    editLog: []
+                }));
+                reviews = [...reviews.filter(r => r.status !== 'completed'), ...completedReviews];
+                completedReviewsLoaded = true;
+            }
+            
+            document.getElementById('completed-loading').classList.add('hidden');
+            renderReviews();
+        } catch (error) {
+            console.error('Error loading completed reviews:', error);
+            document.getElementById('completed-loading').classList.add('hidden');
+            renderReviews();
+        }
+    }
+    
+    async function loadReviewsFromAPI() {
+        try {
+            const pendingPromise = fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'getPendingReviews' })
+            });
+            const completedPromise = fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'getCompletedReviews' })
+            });
+
+            const [pendingResponse, completedResponse] = await Promise.all([pendingPromise, completedPromise]);
+            const [pendingResult, completedResult] = await Promise.all([pendingResponse.json(), completedResponse.json()]);
+            
+            let allReviews = [];
+            
+            if (pendingResult.success && pendingResult.data && pendingResult.data.reviews) {
+                allReviews = allReviews.concat(pendingResult.data.reviews.map(item => ({
+                    id: item.jobNumber,
+                    rowIndex: item.rowIndex,
+                    jobNumber: item.jobNumber,
+                    project: item.project || '',
+                    houseNumber: item.houseNumber || '',
+                    reviewDate: item.reviewDate,
+                    ratings: {
+                        adminCoordination: item.scores.adminCoordination || 0,
+                        schedulingSpeed: item.scores.schedulingSpeed || 0,
+                        technicianManner: item.scores.technicianManner || 0,
+                        cleanliness: item.scores.cleanliness || 0,
+                        repairSatisfaction: item.scores.repairSatisfaction || 0
+                    },
+                    comment: item.comment || '',
+                    status: 'pending',
+                    image: item.image || '',
+                    editLog: []
+                })));
+            }
+            
+            if (completedResult.success && completedResult.data && completedResult.data.reviews) {
+                allReviews = allReviews.concat(completedResult.data.reviews.map(item => ({
+                    id: item.jobNumber,
+                    rowIndex: item.rowIndex,
+                    jobNumber: item.jobNumber,
+                    project: item.project || '',
+                    houseNumber: item.houseNumber || '',
+                    reviewDate: item.reviewDate,
+                    ratings: {
+                        adminCoordination: item.scores.adminCoordination || 0,
+                        schedulingSpeed: item.scores.schedulingSpeed || 0,
+                        technicianManner: item.scores.technicianManner || 0,
+                        cleanliness: item.scores.cleanliness || 0,
+                        repairSatisfaction: item.scores.repairSatisfaction || 0
+                    },
+                    comment: item.comment || '',
+                    status: 'completed',
+                    image: item.image || '',
+                    editLog: []
+                })));
+            }
+            
+            reviews = allReviews;
+            document.getElementById('pending-loading').classList.add('hidden');
+            document.getElementById('completed-loading').classList.add('hidden');
+            renderReviews();
+        } catch (error) {
+            console.error('Error loading reviews:', error);
+            reviews = [];
+            document.getElementById('pending-loading').classList.add('hidden');
+            document.getElementById('completed-loading').classList.add('hidden');
+            renderReviews();
+        }
+    }
+    
+    // =====================================================================
+    // Review Detail Modal
+    // =====================================================================
+    function showReviewDetail(id) {
+        const review = reviews.find(r => r.id === id);
+        if (!review) return;
+        currentReviewId = id;
+        uploadedImageUrl = '';
+        document.getElementById('image-preview-container').innerHTML = '';
+        
+        const avgRating = calculateAvgRating(review.ratings);
+        
+        document.getElementById('detail-status').innerHTML = review.status === 'pending' 
+            ? '<span class="badge badge-pending"><i class="fas fa-clock mr-1"></i> รอตรวจสอบ</span>'
+            : '<span class="badge badge-completed"><i class="fas fa-check-circle mr-1"></i> บันทึกสำเร็จ</span>';
+        
+        document.getElementById('detail-job-number').textContent = review.jobNumber || '-';
+        document.getElementById('detail-project').textContent = review.project || '-';
+        document.getElementById('detail-house-number').textContent = review.houseNumber || '-';
+        document.getElementById('detail-review-date').textContent = formatDate(review.reviewDate);
+        document.getElementById('detail-avg-rating').innerHTML = `
+            <span class="star-rating">${renderStars(parseFloat(avgRating))}</span>
+            <span class="font-bold text-xl">${avgRating}</span>`;
+        
+        document.getElementById('detail-rating-1').innerHTML = `${renderStars(review.ratings.adminCoordination)} <span class="ml-2">${review.ratings.adminCoordination}</span>`;
+        document.getElementById('detail-rating-2').innerHTML = `${renderStars(review.ratings.schedulingSpeed)} <span class="ml-2">${review.ratings.schedulingSpeed}</span>`;
+        document.getElementById('detail-rating-3').innerHTML = `${renderStars(review.ratings.technicianManner)} <span class="ml-2">${review.ratings.technicianManner}</span>`;
+        document.getElementById('detail-rating-4').innerHTML = `${renderStars(review.ratings.cleanliness)} <span class="ml-2">${review.ratings.cleanliness}</span>`;
+        document.getElementById('detail-rating-5').innerHTML = `${renderStars(review.ratings.repairSatisfaction)} <span class="ml-2">${review.ratings.repairSatisfaction}</span>`;
+        document.getElementById('detail-comment').textContent = review.comment || 'ไม่มีความคิดเห็น';
+        
+        const statusChangeSection = document.getElementById('status-change-section');
+        const editActionsSection = document.getElementById('edit-actions-section');
+        const savedImagesSection = document.getElementById('saved-images-section');
+        
+        if (review.status === 'pending') {
+            statusChangeSection.classList.remove('hidden');
+            savedImagesSection.classList.add('hidden');
+            enableEditMode();
+        } else {
+            statusChangeSection.classList.add('hidden');
+            editActionsSection.classList.add('hidden');
+            if (review.image) {
+                savedImagesSection.classList.remove('hidden');
+                document.getElementById('saved-images-container').innerHTML = `
+                    <a href="${review.image}" target="_blank" class="block">
+                        <img src="${review.image}" alt="รูปภาพที่บันทึก" class="w-40 h-40 object-cover rounded-lg border-2 border-gray-300 hover:border-blue-500 transition-colors cursor-pointer shadow-md hover:shadow-lg">
+                    </a>`;
+            } else {
+                savedImagesSection.classList.add('hidden');
+            }
+            disableEditMode();
+        }
+        
+        renderNotes(review.notes);
+        if (review.status === 'pending') {
+            document.getElementById('upload-image').value = '';
+            uploadedImageUrl = '';
+        }
+        
+        document.getElementById('review-detail-modal').classList.add('active');
+    }
+    
+    function closeDetailModal() {
+        document.getElementById('review-detail-modal').classList.remove('active');
+        currentReviewId = null;
+        uploadedImageUrl = '';
+        document.getElementById('upload-image').value = '';
+        disableEditMode();
+    }
+    
+    function enableEditMode() {
+        const review = reviews.find(r => r.id === currentReviewId);
+        if (!review || review.status !== 'pending') return;
+        document.getElementById('job-number-display').classList.add('hidden');
+        document.getElementById('job-number-edit').classList.remove('hidden');
+        document.getElementById('project-display').classList.add('hidden');
+        document.getElementById('project-edit').classList.remove('hidden');
+        document.getElementById('house-number-display').classList.add('hidden');
+        document.getElementById('house-number-edit').classList.remove('hidden');
+        document.getElementById('edit-actions-section').classList.remove('hidden');
+        document.getElementById('edit-job-number').value = review.jobNumber || '';
+        document.getElementById('edit-project').value = review.project || '';
+        document.getElementById('edit-house-number').value = review.houseNumber || '';
+    }
+    
+    function disableEditMode() {
+        document.getElementById('job-number-display').classList.remove('hidden');
+        document.getElementById('job-number-edit').classList.add('hidden');
+        document.getElementById('project-display').classList.remove('hidden');
+        document.getElementById('project-edit').classList.add('hidden');
+        document.getElementById('house-number-display').classList.remove('hidden');
+        document.getElementById('house-number-edit').classList.add('hidden');
+        document.getElementById('edit-actions-section').classList.add('hidden');
+    }
+    
+    function saveEdits() {
+        const review = reviews.find(r => r.id === currentReviewId);
+        if (!review) return;
+        const newJobNumber = document.getElementById('edit-job-number').value.trim();
+        const newProject = document.getElementById('edit-project').value.trim();
+        const newHouseNumber = document.getElementById('edit-house-number').value.trim();
+        if (!newJobNumber || !newProject || !newHouseNumber) { alert('กรุณากรอกข้อมูลให้ครบถ้วน'); return; }
+        
+        if (!review.notes) review.notes = [];
+        const changes = [];
+        if (newJobNumber !== review.jobNumber) changes.push(`แก้ไขเลขที่ใบงานจาก "${review.jobNumber}" เป็น "${newJobNumber}"`);
+        if (newProject !== review.project) changes.push(`แก้ไขโครงการจาก "${review.project}" เป็น "${newProject}"`);
+        if (newHouseNumber !== review.houseNumber) changes.push(`แก้ไขบ้านเลขที่จาก "${review.houseNumber}" เป็น "${newHouseNumber}"`);
+        
+        if (changes.length > 0) {
+            review.notes.push({ timestamp: new Date().toISOString(), content: changes.join(', ') });
+            const saveBtn = document.getElementById('save-edit-btn');
+            const saveIcon = document.getElementById('save-icon');
+            const saveText = document.getElementById('save-text');
+            saveBtn.disabled = true;
+            saveBtn.classList.add('opacity-75', 'cursor-not-allowed');
+            saveIcon.className = 'fas fa-spinner fa-spin mr-2';
+            saveText.textContent = 'กำลังบันทึก...';
+            
+            review.jobNumber = newJobNumber;
+            review.project = newProject;
+            review.houseNumber = newHouseNumber;
+            document.getElementById('detail-job-number').textContent = review.jobNumber;
+            document.getElementById('detail-project').textContent = review.project;
+            document.getElementById('detail-house-number').textContent = review.houseNumber;
+            renderNotes(review.notes);
+            renderReviews();
+            
+            saveEditToBackend(review.rowIndex, newJobNumber, newProject, newHouseNumber)
+                .then(() => {
+                    saveBtn.disabled = false;
+                    saveBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                    saveIcon.className = 'fas fa-save mr-2';
+                    saveText.textContent = 'บันทึกการแก้ไข';
+                    showEditSuccessModal();
+                })
+                .catch(error => {
+                    saveBtn.disabled = false;
+                    saveBtn.classList.remove('opacity-75', 'cursor-not-allowed');
+                    saveIcon.className = 'fas fa-save mr-2';
+                    saveText.textContent = 'บันทึกการแก้ไข';
+                    alert('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
+                    loadReviewsFromAPI();
+                });
+        } else {
+            alert('ไม่มีการเปลี่ยนแปลงข้อมูล');
+        }
+    }
+    
+    function renderNotes(notes) {
+        const notesList = document.getElementById('notes-list');
+        const notesEmpty = document.getElementById('notes-empty');
+        if (!notes || notes.length === 0) {
+            notesList.innerHTML = '';
+            notesEmpty.classList.remove('hidden');
+        } else {
+            notesEmpty.classList.add('hidden');
+            notesList.innerHTML = notes.map(note => `
+                <div class="note-item p-4 bg-white border border-gray-200 rounded-lg">
+                    <div class="flex items-start gap-3">
+                        <i class="fas fa-sticky-note text-blue-500 mt-1"></i>
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-500 mb-1">${formatDate(note.timestamp)}</p>
+                            <p class="text-gray-900">${note.content}</p>
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+    }
+    
+    function addNote() {
+        const input = document.getElementById('note-input');
+        const content = input.value.trim();
+        if (!content) { alert('กรุณาใส่ข้อความบันทึก'); return; }
+        const review = reviews.find(r => r.id === currentReviewId);
+        if (!review) return;
+        if (!review.notes) review.notes = [];
+        review.notes.push({ timestamp: new Date().toISOString(), content });
+        renderNotes(review.notes);
+        input.value = '';
+    }
+    
+    // =====================================================================
+    // Image Upload & Status Change
+    // =====================================================================
+    const IMGBB_API_KEY = '404626b78a909caef0e13c28c1e1168a';
+    
+    document.getElementById('upload-image').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 32 * 1024 * 1024) { alert('ไฟล์ภาพมีขนาดใหญ่เกิน 32 MB'); e.target.value = ''; return; }
+        const container = document.getElementById('image-preview-container');
+        container.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin text-2xl text-blue-500"></i><p class="text-sm text-gray-600 mt-2">กำลังอัปโหลด...</p></div>';
+        try {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64 = e.target.result.split(',')[1];
+                const formData = new FormData();
+                formData.append('image', base64);
+                const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: 'POST', body: formData });
+                const result = await response.json();
+                if (result.success) {
+                    uploadedImageUrl = result.data.url;
+                    container.innerHTML = `<div class="image-preview"><img src="${result.data.url}" alt="Preview"><div class="remove-image" onclick="removeUploadedImage()"><i class="fas fa-times"></i></div></div>`;
+                } else { throw new Error('Upload failed'); }
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Upload error:', error);
+            alert('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ');
+            container.innerHTML = '';
+            e.target.value = '';
+        }
+    });
+    
+    function removeUploadedImage() {
+        uploadedImageUrl = '';
+        document.getElementById('image-preview-container').innerHTML = '';
+        document.getElementById('upload-image').value = '';
+    }
+    
+    async function confirmStatusChange() {
+        if (!uploadedImageUrl) { alert('กรุณาอัปโหลดรูปภาพก่อนยืนยันการเปลี่ยนสถานะ'); return; }
+        const review = reviews.find(r => r.id === currentReviewId);
+        if (!review) return;
+        try {
+            await updateStatusToBackend(review.rowIndex, 'completed', uploadedImageUrl);
+            review.status = 'completed';
+            if (!review.images) review.images = [];
+            review.images.push(uploadedImageUrl);
+            closeDetailModal();
+            document.getElementById('success-modal').classList.add('active');
+            setTimeout(() => { closeSuccessModal(); renderReviews(); }, 2000);
+        } catch (error) {
+            alert('เกิดข้อผิดพลาดในการอัปเดตสถานะ: ' + error.message);
+        }
+    }
+    
+    function closeSuccessModal() { document.getElementById('success-modal').classList.remove('active'); }
+    function showEditSuccessModal() { document.getElementById('edit-success-modal').classList.add('active'); }
+    function closeEditSuccessModal() { document.getElementById('edit-success-modal').classList.remove('active'); }
+    
+    // =====================================================================
+    // Sort Event Listeners
+    // =====================================================================
+    document.getElementById('pending-sort').addEventListener('change', (e) => {
+        pendingSortOrder = e.target.value;
+        currentPagePending = 1;
+        renderReviews();
+    });
+    document.getElementById('completed-sort').addEventListener('change', (e) => {
+        completedSortOrder = e.target.value;
+        currentPageCompleted = 1;
+        renderReviews();
+    });
+    
+    // Page input enter key support
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('pending-page-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') goToPage('pending'); });
+        document.getElementById('completed-page-input')?.addEventListener('keypress', (e) => { if (e.key === 'Enter') goToPage('completed'); });
+    });
+    
+    // =====================================================================
+    // DASHBOARD FUNCTIONS
+    // =====================================================================
+    let dashboardProjectChoices = null;
+    
+    function initDashboard() {
+        if (dashboardProjectChoices) return;
+        
+        const now = new Date();
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayDate = yesterday.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('dashboard-subtitle').textContent = `ภาพรวมข้อมูลรีวิว วันที่ ${yesterdayDate}`;
+        
+        const currentYear = new Date().getFullYear();
+        const yearSelect = document.getElementById('dashboard-year');
+        for (let year = currentYear; year >= currentYear - 5; year--) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.textContent = year + 543;
+            if (year === currentYear) option.selected = true;
+            yearSelect.appendChild(option);
+        }
+        document.getElementById('dashboard-month').value = new Date().getMonth() + 1;
+        
+        // FIXED: Dashboard project search with fuseOptions for partial matching
+        const projectSelect = document.getElementById('dashboard-project');
+        dashboardProjectChoices = new Choices(projectSelect, {
+            searchEnabled: true,
+            searchPlaceholderValue: 'พิมพ์ชื่อโครงการบางส่วนเพื่อค้นหา...',
+            noResultsText: 'ไม่พบโครงการที่ค้นหา',
+            itemSelectText: 'คลิกเพื่อเลือก',
+            removeItemButton: true,
+            shouldSort: false,
+            fuseOptions: {
+                includeScore: true,
+                threshold: 0.4,
+                distance: 1000,
+                minMatchCharLength: 1,
+                findAllMatches: true,
+                ignoreLocation: true
+            },
+            searchResultLimit: 100,
+            searchFields: ['label']
+        });
+        
+        loadDashboardProjects();
+        
+        document.getElementById('dashboard-period').addEventListener('change', (e) => {
+            const value = e.target.value;
+            const monthSelector = document.getElementById('month-selector');
+            const yearSelector = document.getElementById('year-selector');
+            if (value === 'by-month') { monthSelector.classList.remove('hidden'); yearSelector.classList.remove('hidden'); }
+            else if (value === 'by-year') { monthSelector.classList.add('hidden'); yearSelector.classList.remove('hidden'); }
+            else { monthSelector.classList.add('hidden'); yearSelector.classList.add('hidden'); }
+        });
+        
+        document.getElementById('dashboard-clear-filter').addEventListener('click', () => {
+            document.getElementById('dashboard-period').value = 'this-month';
+            document.getElementById('month-selector').classList.add('hidden');
+            document.getElementById('year-selector').classList.add('hidden');
+            if (dashboardProjectChoices) dashboardProjectChoices.removeActiveItems();
+            loadDashboardData(false);
+        });
+        
+        document.getElementById('dashboard-apply-filter').addEventListener('click', () => loadDashboardData(false));
+    }
+    
+    async function loadDashboardData(isInitialLoad = false) {
+        try {
+            if (!isInitialLoad) showDashboardLoading(true);
+            
+            const period = document.getElementById('dashboard-period').value;
+            const month = document.getElementById('dashboard-month').value;
+            const year = document.getElementById('dashboard-year').value;
+            const selectedProjects = dashboardProjectChoices ? dashboardProjectChoices.getValue(true) : [];
+            
+            const params = new URLSearchParams({
+                action: 'getDashboardData',
+                period, month, year,
+                projects: selectedProjects.join(',')
+            });
+            
+            const response = await fetch(`${DASHBOARD_API_URL}?${params.toString()}`);
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                cachedDashboardData = result.data;
+                updateDashboard(result.data);
+                if (result.data.feedback) {
+                    feedbackData = result.data.feedback;
+                    feedbackCurrentPage = 1;
+                    renderFeedback();
+                }
+            } else {
+                console.error('Dashboard API Error:', result.message);
+                alert('เกิดข้อผิดพลาด: ' + result.message);
+            }
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+            alert('ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่');
+        } finally {
+            if (isInitialLoad) showDashboardLoadingModal(false);
+            else showDashboardLoading(false);
+        }
+    }
+    
+    async function loadDashboardProjects() {
+        try {
+            const params = new URLSearchParams({ action: 'getDashboardData', period: 'this-year' });
+            const response = await fetch(`${DASHBOARD_API_URL}?${params.toString()}`);
+            const result = await response.json();
+            if (result.status === 'success' && result.projects) {
+                const projectOptions = result.projects.map(project => ({ value: project, label: project }));
+                dashboardProjectChoices.setChoices(projectOptions, 'value', 'label', false);
+            }
+        } catch (error) {
+            console.error('Error loading dashboard projects:', error);
+        }
+    }
+    
+    function showDashboardLoadingModal(show) {
+        const modal = document.getElementById('dashboard-loading-modal');
+        if (show) modal.classList.add('active');
+        else setTimeout(() => modal.classList.remove('active'), 100);
+    }
+    
+    function showDashboardLoading(isLoading) {
+        const applyBtn = document.getElementById('dashboard-apply-filter');
+        if (isLoading) {
+            applyBtn.disabled = true;
+            applyBtn.classList.add('opacity-75');
+            applyBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>กำลังโหลด...';
+        } else {
+            applyBtn.disabled = false;
+            applyBtn.classList.remove('opacity-75');
+            applyBtn.innerHTML = '<i class="fas fa-search mr-1"></i>แสดงผล';
+        }
+    }
+    
+    function updateDashboard(data) {
+        document.getElementById('kpi-total-jobs').textContent = data.totalJobs || 0;
+        document.getElementById('kpi-total-units').textContent = data.totalUnits || 0;
+        document.getElementById('kpi-avg-score').textContent = (data.avgScore || 0).toFixed(1);
+        
+        document.getElementById('status-reviewed-jobs').textContent = data.reviewed.jobs;
+        document.getElementById('status-reviewed-total').textContent = data.totalJobs;
+        document.getElementById('status-reviewed-rate').textContent = data.reviewed.rate + '%';
+        document.getElementById('status-reviewed-units').textContent = data.reviewed.units;
+        
+        document.getElementById('status-unable-jobs').textContent = data.unable.jobs;
+        document.getElementById('status-unable-total').textContent = data.totalJobs;
+        document.getElementById('status-unable-rate').textContent = data.unable.rate + '%';
+        document.getElementById('status-unable-units').textContent = data.unable.units;
+        
+        document.getElementById('status-remaining-jobs').textContent = data.remaining.jobs;
+        document.getElementById('status-remaining-total').textContent = data.totalJobs;
+        document.getElementById('status-remaining-rate').textContent = data.remaining.rate + '%';
+        document.getElementById('status-remaining-units').textContent = data.remaining.units;
+        
+        updateStackedBar('job-rate', data.reviewed.rate || 0, data.remaining.rate || 0, data.unable.rate || 0);
+        updateStackedBar('unit-rate', data.reviewed.unitRate || 0, data.remaining.unitRate || 0, data.unable.unitRate || 0);
+        
+        document.getElementById('job-share-cc-count').textContent = data.jobShare.callCenter.count;
+        document.getElementById('job-share-cc-rate').textContent = data.jobShare.callCenter.rate + '%';
+        document.getElementById('job-share-cc-bar').style.width = data.jobShare.callCenter.rate + '%';
+        document.getElementById('job-share-fm-count').textContent = data.jobShare.fm.count;
+        document.getElementById('job-share-fm-rate').textContent = data.jobShare.fm.rate + '%';
+        document.getElementById('job-share-fm-bar').style.width = data.jobShare.fm.rate + '%';
+        
+        document.getElementById('unit-share-cc-count').textContent = data.unitShare.callCenter.count;
+        document.getElementById('unit-share-cc-rate').textContent = data.unitShare.callCenter.rate + '%';
+        document.getElementById('unit-share-cc-bar').style.width = data.unitShare.callCenter.rate + '%';
+        document.getElementById('unit-share-fm-count').textContent = data.unitShare.fm.count;
+        document.getElementById('unit-share-fm-rate').textContent = data.unitShare.fm.rate + '%';
+        document.getElementById('unit-share-fm-bar').style.width = data.unitShare.fm.rate + '%';
+        
+        updateScore(1, data.scores.adminCoordination || 0);
+        updateScore(2, data.scores.speedAndNotification || 0);
+        updateScore(3, data.scores.dressingAndPoliteness || 0);
+        updateScore(4, data.scores.cleanliness || 0);
+        updateScore(5, data.scores.repairSatisfaction || 0);
+    }
+    
+    function updateStackedBar(prefix, reviewedRate, remainingRate, unableRate) {
+        const reviewedEl = document.getElementById(`${prefix}-reviewed`);
+        const remainingEl = document.getElementById(`${prefix}-remaining`);
+        const unableEl = document.getElementById(`${prefix}-unable`);
+        const total = reviewedRate + remainingRate + unableRate;
+        if (total > 0) {
+            const adjReviewed = Math.round((reviewedRate / total) * 100);
+            const adjUnable = Math.round((unableRate / total) * 100);
+            const adjRemaining = 100 - adjReviewed - adjUnable;
+            reviewedEl.style.width = adjReviewed + '%';
+            remainingEl.style.width = Math.max(0, adjRemaining) + '%';
+            unableEl.style.width = adjUnable + '%';
+            reviewedEl.querySelector('.rate-text').textContent = reviewedRate >= 10 ? reviewedRate + '%' : '';
+            remainingEl.querySelector('.rate-text').textContent = remainingRate >= 10 ? remainingRate + '%' : '';
+            unableEl.querySelector('.rate-text').textContent = unableRate >= 10 ? unableRate + '%' : '';
+        } else {
+            reviewedEl.style.width = '0%'; remainingEl.style.width = '0%'; unableEl.style.width = '0%';
+            reviewedEl.querySelector('.rate-text').textContent = '';
+            remainingEl.querySelector('.rate-text').textContent = '';
+            unableEl.querySelector('.rate-text').textContent = '';
+        }
+    }
+    
+    function updateScore(index, score) {
+        document.getElementById(`score-${index}`).textContent = score.toFixed(1);
+        document.getElementById(`score-bar-${index}`).style.width = ((score / 5.0) * 100) + '%';
+    }
+    
+    // =====================================================================
+    // INTERACTIVE DRILL-DOWN (NEW FEATURE)
+    // =====================================================================
+    const scoreLabels = {
+        'score-1': 'การประสานงานของแอดมิน',
+        'score-2': 'ความรวดเร็วในการนัดหมาย และแจ้งเตือนก่อนเข้ารับบริการ',
+        'score-3': 'การแต่งกาย และความสุภาพของผู้ให้บริการ',
+        'score-4': 'ความสะอาดเรียบร้อยของพื้นที่ หลังเข้ารับบริการ',
+        'score-5': 'ความพึงพอใจต่องานซ่อม และระยะเวลาในการซ่อมงาน'
+    };
+    
+    function showDrillDown(type) {
+        const data = cachedDashboardData;
+        if (!data) { alert('กรุณาโหลดข้อมูล Dashboard ก่อน'); return; }
+        
+        const modal = document.getElementById('drill-down-modal');
+        const title = document.getElementById('drill-down-title');
+        const subtitle = document.getElementById('drill-down-subtitle');
+        const content = document.getElementById('drill-down-content');
+        
+        let html = '';
+        
+        switch(type) {
+            case 'total-jobs':
+                title.textContent = 'รายละเอียดจำนวนงาน';
+                subtitle.textContent = `ทั้งหมด ${data.totalJobs} งาน`;
+                html = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold text-green-600">${data.reviewed.jobs}</div>
+                            <div class="text-sm text-green-700 mt-1">รีวิวแล้ว (${data.reviewed.rate}%)</div>
+                        </div>
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold text-orange-600">${data.remaining.jobs}</div>
+                            <div class="text-sm text-orange-700 mt-1">คงเหลือ (${data.remaining.rate}%)</div>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold text-red-600">${data.unable.jobs}</div>
+                            <div class="text-sm text-red-700 mt-1">ติดต่อไม่ได้ (${data.unable.rate}%)</div>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                        <h4 class="font-semibold text-blue-800 mb-3"><i class="fas fa-chart-bar mr-2"></i>สัดส่วนช่องทาง</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-600">${data.jobShare.callCenter.count}</div>
+                                <div class="text-sm text-blue-700">Call Center (${data.jobShare.callCenter.rate}%)</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-indigo-600">${data.jobShare.fm.count}</div>
+                                <div class="text-sm text-indigo-700">FM (${data.jobShare.fm.rate}%)</div>
+                            </div>
+                        </div>
+                    </div>`;
+                break;
+                
+            case 'total-units':
+                title.textContent = 'รายละเอียดจำนวน Unit';
+                subtitle.textContent = `ทั้งหมด ${data.totalUnits} Unit`;
+                html = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold text-green-600">${data.reviewed.units}</div>
+                            <div class="text-sm text-green-700 mt-1">รีวิวแล้ว (${data.reviewed.unitRate || 0}%)</div>
+                        </div>
+                        <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold text-orange-600">${data.remaining.units}</div>
+                            <div class="text-sm text-orange-700 mt-1">คงเหลือ (${data.remaining.unitRate || 0}%)</div>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                            <div class="text-3xl font-bold text-red-600">${data.unable.units}</div>
+                            <div class="text-sm text-red-700 mt-1">ติดต่อไม่ได้ (${data.unable.unitRate || 0}%)</div>
+                        </div>
+                    </div>
+                    <div class="bg-purple-50 border border-purple-200 rounded-xl p-4">
+                        <h4 class="font-semibold text-purple-800 mb-3"><i class="fas fa-users mr-2"></i>สัดส่วนช่องทาง Unit</h4>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-blue-600">${data.unitShare.callCenter.count}</div>
+                                <div class="text-sm text-blue-700">Call Center (${data.unitShare.callCenter.rate}%)</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-2xl font-bold text-indigo-600">${data.unitShare.fm.count}</div>
+                                <div class="text-sm text-indigo-700">FM (${data.unitShare.fm.rate}%)</div>
+                            </div>
+                        </div>
+                    </div>`;
+                break;
+                
+            case 'avg-score':
+                title.textContent = 'คะแนนเฉลี่ยรายข้อ';
+                subtitle.textContent = `คะแนนรวมเฉลี่ย ${(data.avgScore || 0).toFixed(1)} / 5.0`;
+                const scores = [
+                    { label: '1. การประสานงานของแอดมิน', value: data.scores.adminCoordination || 0, color: 'blue' },
+                    { label: '2. ความรวดเร็วในการนัดหมาย', value: data.scores.speedAndNotification || 0, color: 'green' },
+                    { label: '3. การแต่งกาย และความสุภาพ', value: data.scores.dressingAndPoliteness || 0, color: 'purple' },
+                    { label: '4. ความสะอาดเรียบร้อย', value: data.scores.cleanliness || 0, color: 'amber' },
+                    { label: '5. ความพึงพอใจต่องานซ่อม', value: data.scores.repairSatisfaction || 0, color: 'red' }
+                ];
+                html = `<div class="space-y-4">`;
+                scores.forEach(s => {
+                    const pct = ((s.value / 5) * 100).toFixed(0);
+                    const emoji = s.value >= 4 ? '😊' : s.value >= 3 ? '😐' : '😟';
+                    html += `
+                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-sm font-medium text-gray-700">${s.label}</span>
+                                <span class="text-lg font-bold text-gray-800">${emoji} ${s.value.toFixed(1)}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-4">
+                                <div class="bg-amber-500 h-4 rounded-full transition-all" style="width: ${pct}%"></div>
+                            </div>
+                            <div class="text-right text-xs text-gray-500 mt-1">${pct}%</div>
+                        </div>`;
+                });
+                html += `</div>`;
+                break;
+                
+            case 'reviewed':
+                title.textContent = 'รายการที่รีวิวแล้ว';
+                subtitle.textContent = `${data.reviewed.jobs} งาน, ${data.reviewed.units} Unit (${data.reviewed.rate}%)`;
+                html = buildStatusDrillDown('reviewed', data);
+                break;
+                
+            case 'remaining':
+                title.textContent = 'รายการคงเหลือ';
+                subtitle.textContent = `${data.remaining.jobs} งาน, ${data.remaining.units} Unit (${data.remaining.rate}%)`;
+                html = buildStatusDrillDown('remaining', data);
+                break;
+                
+            case 'unable':
+                title.textContent = 'รายการที่ไม่สามารถติดต่อได้';
+                subtitle.textContent = `${data.unable.jobs} งาน, ${data.unable.units} Unit (${data.unable.rate}%)`;
+                html = buildStatusDrillDown('unable', data);
+                break;
+                
+            case 'job-share-cc':
+            case 'unit-share-cc':
+                const isJob = type === 'job-share-cc';
+                title.textContent = `รายละเอียด ${isJob ? 'งาน' : 'Unit'} จาก Call Center`;
+                const ccData = isJob ? data.jobShare.callCenter : data.unitShare.callCenter;
+                subtitle.textContent = `${ccData.count} ${isJob ? 'งาน' : 'Unit'} (${ccData.rate}%)`;
+                html = buildChannelDrillDown('Call Center', ccData, isJob ? data.jobShare : data.unitShare, isJob);
+                break;
+                
+            case 'job-share-fm':
+            case 'unit-share-fm':
+                const isJobFM = type === 'job-share-fm';
+                title.textContent = `รายละเอียด ${isJobFM ? 'งาน' : 'Unit'} จาก FM`;
+                const fmData = isJobFM ? data.jobShare.fm : data.unitShare.fm;
+                subtitle.textContent = `${fmData.count} ${isJobFM ? 'งาน' : 'Unit'} (${fmData.rate}%)`;
+                html = buildChannelDrillDown('FM', fmData, isJobFM ? data.jobShare : data.unitShare, isJobFM);
+                break;
+                
+            default:
+                if (type.startsWith('score-')) {
+                    const scoreKey = type;
+                    const scoreLabel = scoreLabels[scoreKey] || 'คะแนน';
+                    const scoreIndex = parseInt(type.split('-')[1]);
+                    const scoreKeys = ['adminCoordination', 'speedAndNotification', 'dressingAndPoliteness', 'cleanliness', 'repairSatisfaction'];
+                    const scoreValue = data.scores[scoreKeys[scoreIndex - 1]] || 0;
+                    title.textContent = scoreLabel;
+                    subtitle.textContent = `คะแนนเฉลี่ย ${scoreValue.toFixed(1)} / 5.0`;
+                    const pct = ((scoreValue / 5) * 100).toFixed(0);
+                    html = `
+                        <div class="text-center mb-6">
+                            <div class="inline-block bg-amber-50 border-2 border-amber-200 rounded-2xl p-8">
+                                <div class="text-6xl font-bold text-amber-600">${scoreValue.toFixed(1)}</div>
+                                <div class="text-gray-500 mt-2">จากคะแนนเต็ม 5.0</div>
+                                <div class="star-rating text-3xl mt-3">${renderStars(scoreValue)}</div>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-6 shadow-inner">
+                            <div class="bg-amber-500 h-6 rounded-full flex items-center justify-center text-white text-sm font-bold transition-all" style="width: ${pct}%">${pct}%</div>
+                        </div>
+                        <div class="mt-4 text-center text-sm text-gray-600">
+                            ${scoreValue >= 4.5 ? '🌟 ยอดเยี่ยม' : scoreValue >= 4 ? '😊 ดีมาก' : scoreValue >= 3 ? '😐 ปานกลาง' : scoreValue >= 2 ? '😟 ต้องปรับปรุง' : '😢 ต้องปรับปรุงอย่างเร่งด่วน'}
+                        </div>`;
+                }
+                break;
+        }
+        
+        content.innerHTML = html;
+        modal.classList.add('active');
+    }
+    
+    function buildStatusDrillDown(status, data) {
+        const statusData = data[status];
+        const colors = { reviewed: 'green', remaining: 'orange', unable: 'red' };
+        const icons = { reviewed: 'check-circle', remaining: 'clock', unable: 'phone-slash' };
+        const color = colors[status];
+        const icon = icons[status];
+        
+        return `
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-${color}-50 border border-${color}-200 rounded-xl p-4 text-center">
+                    <div class="text-4xl font-bold text-${color}-600"><i class="fas fa-${icon} mr-2"></i>${statusData.jobs}</div>
+                    <div class="text-sm text-${color}-700 mt-1">จำนวนงาน</div>
+                </div>
+                <div class="bg-${color}-50 border border-${color}-200 rounded-xl p-4 text-center">
+                    <div class="text-4xl font-bold text-${color}-600"><i class="fas fa-home mr-2"></i>${statusData.units}</div>
+                    <div class="text-sm text-${color}-700 mt-1">จำนวน Unit</div>
+                </div>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <h4 class="font-semibold text-gray-800 mb-3"><i class="fas fa-chart-pie mr-2"></i>สัดส่วน</h4>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>Job Rate</span>
+                            <span class="font-bold">${statusData.rate}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-${color}-500 h-3 rounded-full" style="width: ${statusData.rate}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>Unit Rate</span>
+                            <span class="font-bold">${statusData.unitRate || 0}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-3">
+                            <div class="bg-${color}-500 h-3 rounded-full" style="width: ${statusData.unitRate || 0}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+    }
+    
+    function buildChannelDrillDown(channel, channelData, shareData, isJob) {
+        const otherChannel = channel === 'Call Center' ? 'FM' : 'Call Center';
+        const otherData = channel === 'Call Center' ? shareData.fm : shareData.callCenter;
+        const color1 = channel === 'Call Center' ? 'blue' : 'indigo';
+        const color2 = channel === 'Call Center' ? 'indigo' : 'blue';
+        const icon1 = channel === 'Call Center' ? 'headset' : 'hard-hat';
+        const icon2 = channel === 'Call Center' ? 'hard-hat' : 'headset';
+        
+        return `
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="bg-${color1}-50 border-2 border-${color1}-300 rounded-xl p-4 text-center">
+                    <div class="text-3xl font-bold text-${color1}-600"><i class="fas fa-${icon1} mr-2"></i>${channelData.count}</div>
+                    <div class="text-sm text-${color1}-700 mt-1">${channel} (${channelData.rate}%)</div>
+                </div>
+                <div class="bg-${color2}-50 border border-${color2}-200 rounded-xl p-4 text-center opacity-60">
+                    <div class="text-3xl font-bold text-${color2}-600"><i class="fas fa-${icon2} mr-2"></i>${otherData.count}</div>
+                    <div class="text-sm text-${color2}-700 mt-1">${otherChannel} (${otherData.rate}%)</div>
+                </div>
+            </div>
+            <div class="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                <h4 class="font-semibold text-gray-800 mb-3">สัดส่วนเปรียบเทียบ</h4>
+                <div class="flex h-10 rounded-xl overflow-hidden shadow-md">
+                    <div class="bg-${color1}-500 flex items-center justify-center text-white text-sm font-semibold" style="width: ${channelData.rate}%">${channelData.rate}%</div>
+                    <div class="bg-${color2}-500 flex items-center justify-center text-white text-sm font-semibold" style="width: ${otherData.rate}%">${otherData.rate}%</div>
+                </div>
+                <div class="flex justify-between mt-2 text-xs text-gray-500">
+                    <span><i class="fas fa-${icon1} mr-1"></i>${channel}</span>
+                    <span><i class="fas fa-${icon2} mr-1"></i>${otherChannel}</span>
+                </div>
+            </div>`;
+    }
+    
+    function closeDrillDown() {
+        document.getElementById('drill-down-modal').classList.remove('active');
+    }
+    
+    // =====================================================================
+    // FEEDBACK PAGINATION
+    // =====================================================================
+    let feedbackData = [];
+    let feedbackCurrentPage = 1;
+    const feedbackPerPage = 10;
+    let feedbackSortOrder = 'newest';
+    
+    function loadFeedbackData() { renderFeedback(); }
+    
+    function sortFeedbackData() {
+        if (!feedbackData || feedbackData.length === 0) return;
+        feedbackData.sort((a, b) => {
+            const dateA = new Date(a.createdAt);
+            const dateB = new Date(b.createdAt);
+            return feedbackSortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+        });
+    }
+    
+    function renderFeedback() {
+        sortFeedbackData();
+        const feedbackList = document.getElementById('feedback-list');
+        if (!feedbackData || feedbackData.length === 0) {
+            feedbackList.innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fas fa-inbox text-4xl mb-2"></i><p>ไม่มีความคิดเห็น</p></div>';
+            document.getElementById('feedback-current-page').textContent = '0';
+            document.getElementById('feedback-total-pages').textContent = '0';
+            document.getElementById('feedback-prev-btn').disabled = true;
+            document.getElementById('feedback-next-btn').disabled = true;
+            return;
+        }
+        const totalPages = Math.ceil(feedbackData.length / feedbackPerPage);
+        const startIndex = (feedbackCurrentPage - 1) * feedbackPerPage;
+        const currentFeedback = feedbackData.slice(startIndex, startIndex + feedbackPerPage);
+        
+        feedbackList.innerHTML = '';
+        currentFeedback.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'border-l-4 border-blue-300 bg-gray-50 p-3 rounded-lg hover:bg-blue-50 transition-colors';
+            div.innerHTML = `
+                <div class="text-sm text-gray-600 mb-2 font-medium">
+                    <i class="fas fa-file-alt text-blue-400 mr-1"></i>งาน ${item.serialNumber || '-'} - ${item.projectName || '-'} - บ้านเลขที่ ${item.houseNumber || '-'}
+                </div>
+                <div class="text-sm text-gray-800">${item.comment || ''}</div>`;
+            feedbackList.appendChild(div);
+        });
+        
+        document.getElementById('feedback-current-page').textContent = feedbackCurrentPage;
+        document.getElementById('feedback-total-pages').textContent = totalPages;
+        document.getElementById('feedback-prev-btn').disabled = feedbackCurrentPage === 1;
+        document.getElementById('feedback-next-btn').disabled = feedbackCurrentPage === totalPages;
+    }
+    
+    document.getElementById('feedback-prev-btn').addEventListener('click', () => {
+        if (feedbackCurrentPage > 1) { feedbackCurrentPage--; renderFeedback(); }
+    });
+    document.getElementById('feedback-next-btn').addEventListener('click', () => {
+        const totalPages = Math.ceil(feedbackData.length / feedbackPerPage);
+        if (feedbackCurrentPage < totalPages) { feedbackCurrentPage++; renderFeedback(); }
+    });
+    document.getElementById('feedback-go-page').addEventListener('click', () => {
+        const pageNum = parseInt(document.getElementById('feedback-page-input').value);
+        const totalPages = Math.ceil(feedbackData.length / feedbackPerPage);
+        if (pageNum && pageNum >= 1 && pageNum <= totalPages) { feedbackCurrentPage = pageNum; renderFeedback(); }
+        else alert(`กรุณากรอกหมายเลขหน้าระหว่าง 1 ถึง ${totalPages}`);
+    });
+    document.getElementById('feedback-page-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') document.getElementById('feedback-go-page').click();
+    });
+    document.getElementById('feedback-sort').addEventListener('change', (e) => {
+        feedbackSortOrder = e.target.value;
+        feedbackCurrentPage = 1;
+        renderFeedback();
+    });
+    
+    // =====================================================================
+    // INITIALIZATION
+    // =====================================================================
+    document.addEventListener('DOMContentLoaded', async () => {
+        await loadProjects();
+        await loadReviewsFromAPI();
+        loadFeedbackData();
+    });
+    </script>
+</body>
+</html>
