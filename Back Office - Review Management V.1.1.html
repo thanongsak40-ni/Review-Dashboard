@@ -967,8 +967,12 @@
     // Dashboard data cache for drill-down
     let cachedDashboardData = null;
     
+    // === PRODUCTION (Google Apps Script) ===
     const API_URL = 'https://script.google.com/macros/s/AKfycbzM4ZezRlTP82EdMPgcaQE1Rf1ZWgyjFEShxPLKHFtIoax6XD-NyZfM9mqhe9x3w5-c/exec';
     const DASHBOARD_API_URL = 'https://script.google.com/macros/s/AKfycbyS06vsMqH7W2zFWI-NDZegAgbPtKnub1YvtmUZcQYQCzajXWZzsmMa8K_nZC3uzGfk/exec';
+    // === LOCAL DEVELOPMENT ===
+    // const API_URL = 'http://localhost:3000/api';
+    // const DASHBOARD_API_URL = 'http://localhost:3000/api/dashboard';
     
     // =====================================================================
     // Load Projects (FIXED: Better Choices.js with partial search)
